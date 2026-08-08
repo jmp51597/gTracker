@@ -281,3 +281,288 @@
   font-size: 12px;
   color: var(--text);
 }
+
+.poker-container {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card-group-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-group-label {
+  font-size: 14px;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.card-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 84px;
+  align-items: center;
+}
+
+.poker-card {
+  width: 56px;
+  height: 80px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.poker-card.suit-red {
+  color: #e5484d;
+}
+
+.poker-card.suit-black {
+  color: var(--text-h);
+}
+
+.poker-card .suit {
+  font-size: 18px;
+}
+
+.deal-button {
+  font: inherit;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.deal-button.secondary {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.hand-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hand-result {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.street {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.street-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.street-name {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.action-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-form select,
+.action-form input,
+.action-form button {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.action-form input {
+  width: 90px;
+}
+
+.action-form button {
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+.action-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.action-player {
+  font-weight: 600;
+  color: var(--text-h);
+  min-width: 64px;
+}
+
+.action-amount {
+  color: var(--text-h);
+}
+
+.action-remove {
+  font: inherit;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  margin-left: auto;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.card-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-select {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.pot-summary {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.saved-hands {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saved-hands h3 {
+  margin: 0;
+}
+
+.saved-hands-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.saved-hand-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.saved-hand-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.saved-hand-date {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.saved-hand-outcome {
+  font-size: 13px;
+  color: var(--text-h);
+  flex-grow: 1;
+}
+
+.saved-hand-pot {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.saved-hand-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.saved-hand-actions button {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.static-cards {
+  display: flex;
+  gap: 4px;
+}
+
+.mini-card {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.mini-card.suit-red {
+  color: #e5484d;
+}
+
+.mini-card.suit-black {
+  color: var(--text-h);
+}

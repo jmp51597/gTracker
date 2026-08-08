@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { BankrollProvider } from './context/BankrollContext'
+import { HandHistoryProvider } from './context/HandHistoryContext'
 import NavBar from './components/NavBar'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import History from './pages/History'
+import HandBreakDown from './pages/HandBreakDown'
 import './App.css'
 
 function RequireAuth({ children }) {
@@ -37,6 +39,15 @@ function AppRoutes() {
           </RequireAuth>
         }
       />
+      <Route
+        path="/hand-breakdown"
+        element={
+          <RequireAuth>
+            <NavBar />
+            <HandBreakDown />
+          </RequireAuth>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -46,7 +57,9 @@ export default function App() {
   return (
     <AuthProvider>
       <BankrollProvider>
-        <AppRoutes />
+        <HandHistoryProvider>
+          <AppRoutes />
+        </HandHistoryProvider>
       </BankrollProvider>
     </AuthProvider>
   )

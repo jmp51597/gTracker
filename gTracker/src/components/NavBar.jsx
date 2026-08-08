@@ -12,6 +12,7 @@ export default function NavBar() {
           Dashboard
         </NavLink>
         <NavLink to="/history">History</NavLink>
+        <NavLink to="/hand-breakdown">Hand Breakdown</NavLink>
       </div>
       <div className="navbar-user">
         <span>{user}</span>
