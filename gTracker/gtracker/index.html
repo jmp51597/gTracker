@@ -5,20 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>gtracker</title>
 <style>
+  /* ============================================================
+     DESIGN TOKENS
+     CSS custom properties (variables) used everywhere below.
+     Change a color/radius here once and it updates the whole app.
+     ============================================================ */
   :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --panel-2: #1f232c;
-    --border: #2a2f3a;
-    --text: #e8eaed;
-    --text-dim: #9aa0ac;
-    --accent: #d4a537;
-    --accent-2: #4a90e2;
-    --win: #3ecf8e;
-    --loss: #ef5b5b;
-    --radius: 10px;
+    --bg: #0f1115;         /* page background (near-black) */
+    --panel: #171a21;      /* card/panel background, one shade up from bg */
+    --panel-2: #1f232c;    /* inputs / nested surfaces, one shade up from panel */
+    --border: #2a2f3a;     /* subtle border color used throughout */
+    --text: #e8eaed;       /* primary (near-white) text */
+    --text-dim: #9aa0ac;   /* secondary/muted text (labels, hints) */
+    --accent: #d4a537;     /* brand gold — logo, primary buttons */
+    --accent-2: #4a90e2;   /* blue — focus rings, links */
+    --win: #3ecf8e;        /* green — positive $ amounts */
+    --loss: #ef5b5b;       /* red — negative $ amounts, errors */
+    --radius: 10px;        /* corner radius for cards/panels */
   }
+
+  /* Make width/height include padding+border everywhere (predictable sizing) */
   * { box-sizing: border-box; }
+
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -26,7 +34,11 @@
     color: var(--text);
     min-height: 100vh;
   }
+
+  /* Centered, max-width column that both the auth screen and app screen sit in */
   .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  /* ---- Top header bar: "gtracker" logo on the left, user info/sign-out on the right ---- */
   header.app-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 24px;
@@ -34,7 +46,7 @@
   header.app-header h1 {
     font-size: 22px; margin: 0; letter-spacing: 0.5px;
   }
-  header.app-header h1 span { color: var(--accent); }
+  header.app-header h1 span { color: var(--accent); } /* the "tracker" part of "gtracker" is gold */
   #userBar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dim); }
   #userBar button {
     background: transparent; border: 1px solid var(--border); color: var(--text-dim);
@@ -42,13 +54,17 @@
   }
   #userBar button:hover { color: var(--text); border-color: var(--text-dim); }
 
-  /* Auth screen */
+  /* ============================================================
+     AUTH SCREEN — shown when nobody is signed in
+     ============================================================ */
   #authScreen {
     max-width: 360px; margin: 60px auto; background: var(--panel);
     border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;
   }
   #authScreen h2 { margin-top: 0; font-size: 20px; }
   #authScreen p.sub { color: var(--text-dim); font-size: 13px; margin-top: -8px; margin-bottom: 20px; }
+
+  /* Generic form field wrapper (label + input), reused on both auth and log-session forms */
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
   .field input, .field select, .field textarea {
@@ -56,6 +72,8 @@
     color: var(--text); border-radius: 8px; font-size: 14px; font-family: inherit;
   }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent-2); }
+
+  /* Generic full-width button, used for both "Sign in" and "Add session" */
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     width: 100%; padding: 11px 14px; border-radius: 8px; border: none; cursor: pointer;
@@ -64,18 +82,30 @@
   .btn-primary { background: var(--accent); color: #1a1400; }
   .btn-primary:hover { filter: brightness(1.08); }
   .btn-google {
-    background: #fff; color: #222;
+    background: #fff; color: #222; /* Google's brand guidelines want a white button with the multi-color "G" */
   }
+
+  /* Horizontal layout helper: lays its children out side-by-side, evenly sized
+     (used for the Date/Game-type row and the Buy-in/Cash-out/Duration row) */
   .row { display: flex; gap: 10px; }
   .row > * { flex: 1; }
+
+  /* "── or ──" divider between the Google button and the email/password fields */
   .divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--text-dim); font-size: 12px; }
   .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
   #authError { color: var(--loss); font-size: 13px; margin-top: 10px; min-height: 16px; }
+  /* min-height above reserves space for the error message so the layout doesn't jump when it appears */
+
   #authToggle { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-dim); }
   #authToggle a { color: var(--accent-2); cursor: pointer; text-decoration: none; }
 
-  /* App */
-  #appScreen { display: none; }
+  /* ============================================================
+     MAIN APP SCREEN — shown once the user is signed in
+     ============================================================ */
+  #appScreen { display: none; } /* hidden by default; JS toggles this based on auth state */
+
+  /* Top row of 4 summary stat cards (Sessions / Net / Avg / Win rate) */
   .stats-grid {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;
   }
@@ -85,14 +115,16 @@
   }
   .stat-card .val { font-size: 18px; font-weight: 700; }
   .stat-card .lbl { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-  .win-val { color: var(--win); } .loss-val { color: var(--loss); }
+  .win-val { color: var(--win); } .loss-val { color: var(--loss); } /* used on any $ value, not just stat cards */
 
+  /* Generic card used for "Log a session" and "History" */
   .panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 20px; margin-bottom: 24px;
   }
   .panel h2 { font-size: 15px; margin: 0 0 16px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
 
+  /* One row per logged session inside the History panel */
   .session-list { display: flex; flex-direction: column; gap: 10px; }
   .session-item {
     display: flex; align-items: center; justify-content: space-between;
@@ -100,17 +132,19 @@
     padding: 12px 14px;
   }
   .session-item .meta { font-size: 13px; }
-  .session-item .meta .top { font-weight: 600; }
-  .session-item .meta .bottom { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
-  .session-item .amt { font-weight: 700; font-size: 15px; white-space: nowrap; margin-left: 10px; }
+  .session-item .meta .top { font-weight: 600; }              /* game type + location */
+  .session-item .meta .bottom { color: var(--text-dim); font-size: 12px; margin-top: 2px; } /* date + duration */
+  .session-item .amt { font-weight: 700; font-size: 15px; white-space: nowrap; margin-left: 10px; } /* net $ for that session */
   .session-item .del {
     background: transparent; border: none; color: var(--text-dim); cursor: pointer;
     font-size: 16px; margin-left: 10px; padding: 4px 8px;
   }
-  .session-item .del:hover { color: var(--loss); }
+  .session-item .del:hover { color: var(--loss); } /* delete "✕" turns red on hover */
+
   .empty-state { color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px 0; }
   #addError { color: var(--loss); font-size: 13px; margin-top: 4px; min-height: 16px; }
 
+  /* On narrow (phone) screens, show the 4 stat cards as a 2x2 grid instead of 1x4 */
   @media (max-width: 480px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
   }
@@ -121,14 +155,21 @@
 <div class="wrap">
   <header class="app-header">
     <h1>g<span>tracker</span></h1>
-    <div id="userBar"></div>
+    <div id="userBar"></div> <!-- filled in by JS: shows "<name> [Sign out]" once signed in -->
   </header>
 
-  <!-- AUTH SCREEN -->
+  <!-- ============================================================
+       AUTH SCREEN
+       One form that does double duty for both "Sign in" and
+       "Create an account" — JS flips isSignUpMode and relabels
+       everything rather than having two separate forms.
+       Visible by default; hidden once a user is signed in.
+       ============================================================ -->
   <div id="authScreen">
     <h2 id="authTitle">Sign in</h2>
     <p class="sub">Track your poker &amp; gambling sessions.</p>
 
+    <!-- Google sign-in: one click via Firebase's signInWithPopup, no password needed -->
     <button class="btn btn-google" id="googleBtn">
       <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.5l-6.5-5.5C29.6 34.7 27 35.5 24 35.5c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-0.8 2.3-2.3 4.3-4.2 5.7l6.5 5.5C41.8 36.2 44 30.6 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
       Continue with Google
@@ -136,6 +177,8 @@
 
     <div class="divider">or</div>
 
+    <!-- Email/password fields — used for both signing in and signing up,
+         depending on isSignUpMode in the script below -->
     <div class="field">
       <label>Email</label>
       <input type="email" id="emailInput" autocomplete="email" />
@@ -145,12 +188,23 @@
       <input type="password" id="passwordInput" autocomplete="current-password" />
     </div>
     <button class="btn btn-primary" id="emailAuthBtn">Sign in</button>
-    <div id="authError"></div>
+    <div id="authError"></div> <!-- filled in with a friendly message if auth fails -->
+
+    <!-- "Don't have an account? Sign up" — clicking the link flips isSignUpMode
+         and relabels the whole form (title, button text, this line) -->
     <div id="authToggle"><span id="authToggleText">Don't have an account? </span><a id="authToggleLink">Sign up</a></div>
   </div>
 
-  <!-- APP SCREEN -->
+  <!-- ============================================================
+       APP SCREEN
+       Hidden until a user is signed in (see #appScreen { display:none } above).
+       Three parts: stat summary, "log a session" form, session history.
+       ============================================================ -->
   <div id="appScreen">
+
+    <!-- Live-updating summary numbers, recalculated from all of the
+         signed-in user's sessions every time the data changes (see
+         renderStats() in the script) -->
     <div class="stats-grid">
       <div class="stat-card"><div class="val" id="statSessions">0</div><div class="lbl">Sessions</div></div>
       <div class="stat-card"><div class="val" id="statNet">$0</div><div class="lbl">Net</div></div>
@@ -158,6 +212,8 @@
       <div class="stat-card"><div class="val" id="statWinRate">0%</div><div class="lbl">Win Rate</div></div>
     </div>
 
+    <!-- Form to record a new poker/gambling session. Only Date, Buy-in and
+         Cash-out are required — Location, Duration and Notes are optional. -->
     <div class="panel">
       <h2>Log a session</h2>
       <div class="row">
@@ -196,11 +252,16 @@
       <div class="field">
         <label>Notes (optional)</label>
         <textarea id="notesInput" rows="2" placeholder="Any notes about the session"></textarea>
+        <!-- Note: notes are saved to Firestore with the session, but the History
+             list below doesn't currently display them anywhere. -->
       </div>
       <button class="btn btn-primary" id="addSessionBtn">Add session</button>
-      <div id="addError"></div>
+      <div id="addError"></div> <!-- validation / save-failure messages -->
     </div>
 
+    <!-- Live list of the signed-in user's past sessions, newest first.
+         Populated entirely by JS (renderSessions()) — this placeholder
+         empty-state div gets replaced once any data loads. -->
     <div class="panel">
       <h2>History</h2>
       <div class="session-list" id="sessionList">
@@ -211,6 +272,11 @@
 </div>
 
 <script type="module">
+  /* ============================================================
+     FIREBASE SETUP
+     Loaded straight from Google's CDN as ES modules — no build
+     step, no npm install, this file works as-is when hosted.
+     ============================================================ */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -221,6 +287,13 @@
     serverTimestamp, orderBy
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+  // Public per-project config for the gtracker Firebase project.
+  // This is safe to have visible in client-side code — it just tells the SDK
+  // which Firebase project to talk to. It is NOT a secret: the real access
+  // control is enforced server-side by Firestore security rules (each user
+  // can only read/write documents where userId == their own auth uid) and
+  // this key is additionally restricted in Google Cloud Console to only
+  // work from gtracker's own hosting domains.
   const firebaseConfig = {
     apiKey: "AIzaSyB0go8kz3Nbkv7wwBlZCh67iWHEWj8aPGE",
     authDomain: "gtracker-60774.firebaseapp.com",
@@ -231,11 +304,12 @@
   };
 
   const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  const auth = getAuth(app);       // handles sign in/up/out and "who's logged in"
+  const db = getFirestore(app);    // the database that stores session data
   const googleProvider = new GoogleAuthProvider();
 
   // ---- Elements ----
+  // Grab every DOM element we'll need to read from or write to, once, up front.
   const authScreen = document.getElementById('authScreen');
   const appScreen = document.getElementById('appScreen');
   const userBar = document.getElementById('userBar');
@@ -264,13 +338,17 @@
   const statAvg = document.getElementById('statAvg');
   const statWinRate = document.getElementById('statWinRate');
 
-  let isSignUpMode = false;
-  let unsubscribeSessions = null;
+  let isSignUpMode = false;        // false = "Sign in" form, true = "Create an account" form
+  let unsubscribeSessions = null;  // holds the Firestore listener's cancel function (see below)
 
-  // default date to today
+  // Default the date field to today so most users don't have to touch it
   dateInput.valueAsDate = new Date();
 
   // ---- Auth mode toggle ----
+  // Clicking "Sign up" / "Sign in" flips the form between the two modes by
+  // relabeling the title, button and this link's text — it's the same
+  // fields underneath, just different labels and which Firebase call gets
+  // made on submit (see emailAuthBtn's handler below).
   authToggleLink.addEventListener('click', () => {
     isSignUpMode = !isSignUpMode;
     authTitle.textContent = isSignUpMode ? 'Create an account' : 'Sign in';
@@ -280,6 +358,9 @@
     authError.textContent = '';
   });
 
+  // Email/password submit — calls whichever Firebase Auth function matches
+  // the current mode. onAuthStateChanged (below) reacts to the result, so
+  // this handler doesn't need to do anything on success.
   emailAuthBtn.addEventListener('click', async () => {
     authError.textContent = '';
     const email = emailInput.value.trim();
@@ -299,6 +380,7 @@
     }
   });
 
+  // Google sign-in — opens Google's popup, Firebase handles the OAuth flow
   googleBtn.addEventListener('click', async () => {
     authError.textContent = '';
     try {
@@ -308,6 +390,9 @@
     }
   });
 
+  // Firebase Auth errors come back as machine-readable codes like
+  // "auth/wrong-password" — this translates the common ones into plain
+  // English instead of showing the raw code to the user.
   function friendlyAuthError(err) {
     const code = err.code || '';
     if (code.includes('wrong-password') || code.includes('invalid-credential')) return 'Incorrect email or password.';
@@ -319,15 +404,22 @@
   }
 
   // ---- Auth state ----
+  // This fires immediately on page load (with whatever the cached signed-in
+  // user is, or null) and again every time sign-in/sign-out happens. It's
+  // the single source of truth for "which screen should be visible."
   onAuthStateChanged(auth, (user) => {
     if (user) {
+      // Signed in: show the app, hide the auth form, populate the user bar,
+      // and start listening for this user's session data.
       authScreen.style.display = 'none';
       appScreen.style.display = 'block';
-      const name = user.displayName || user.email;
+      const name = user.displayName || user.email; // Google accounts have a display name; email accounts don't
       userBar.innerHTML = `<span>${name}</span><button id="signOutBtn">Sign out</button>`;
       document.getElementById('signOutBtn').addEventListener('click', () => signOut(auth));
       subscribeToSessions(user.uid);
     } else {
+      // Signed out: show the auth form, hide the app, and stop listening
+      // for session data (no point paying for reads nobody can see).
       authScreen.style.display = 'block';
       appScreen.style.display = 'none';
       userBar.innerHTML = '';
@@ -336,10 +428,13 @@
   });
 
   // ---- Add session ----
+  // Validates the form, then writes one document to the "sessions"
+  // collection in Firestore. Every doc is tagged with userId so Firestore's
+  // security rules (and the query below) can scope data to its owner.
   addSessionBtn.addEventListener('click', async () => {
     addError.textContent = '';
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) return; // shouldn't happen (button's only visible when signed in), just a safety check
 
     const buyIn = parseFloat(buyInInput.value);
     const cashOut = parseFloat(cashOutInput.value);
@@ -350,28 +445,33 @@
     if (isNaN(buyIn) || isNaN(cashOut)) { addError.textContent = 'Enter numeric buy-in and cash-out.'; return; }
 
     const durationRaw = durationInput.value;
-    const duration = durationRaw ? parseInt(durationRaw, 10) : null;
+    const duration = durationRaw ? parseInt(durationRaw, 10) : null; // optional field
 
     try {
-      addSessionBtn.disabled = true;
+      addSessionBtn.disabled = true;                 // prevent double-submit while the write is in flight
       addSessionBtn.textContent = 'Adding…';
       await addDoc(collection(db, 'sessions'), {
-        userId: user.uid,
-        date: dateVal,
+        userId: user.uid,                            // ties this doc to the signed-in user
+        date: dateVal,                                // stored as a plain "YYYY-MM-DD" string
         gameType: gameTypeInput.value,
-        location: location || null,
+        location: location || null,                   // empty string -> null, keeps the data tidy
         buyIn: buyIn,
         cashOut: cashOut,
         durationMinutes: duration,
         notes: notesInput.value.trim() || null,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp()                  // Firestore fills this in server-side
       });
+      // Clear the form for the next entry (but leave game type as-is, and
+      // reset the date back to today rather than blanking it)
       buyInInput.value = '';
       cashOutInput.value = '';
       durationInput.value = '';
       locationInput.value = '';
       notesInput.value = '';
       dateInput.valueAsDate = new Date();
+      // No need to manually refresh the list/stats here — the onSnapshot
+      // listener set up in subscribeToSessions() will pick up this new
+      // document automatically and re-render.
     } catch (err) {
       addError.textContent = 'Could not save session. Try again.';
       console.error(err);
@@ -382,12 +482,21 @@
   });
 
   // ---- Live session list + stats ----
+  // Sets up a real-time Firestore listener scoped to one user's sessions,
+  // newest first. Every time data changes (a session is added or deleted,
+  // from this tab or any other device signed into the same account) this
+  // callback re-runs and both the list and the stat cards refresh.
+  //
+  // Note: filtering by userId AND sorting by date at the same time requires
+  // a Firestore composite index (userId asc, date desc) — that index was
+  // created once in the Firebase console and doesn't need to be touched
+  // again unless the query shape changes.
   function subscribeToSessions(uid) {
-    if (unsubscribeSessions) unsubscribeSessions();
+    if (unsubscribeSessions) unsubscribeSessions(); // drop any previous listener first (e.g. on user switch)
     const q = query(collection(db, 'sessions'), where('userId', '==', uid), orderBy('date', 'desc'));
     unsubscribeSessions = onSnapshot(q, (snap) => {
       const sessions = [];
-      snap.forEach(d => sessions.push({ id: d.id, ...d.data() }));
+      snap.forEach(d => sessions.push({ id: d.id, ...d.data() })); // doc.id isn't part of doc.data(), so add it in
       renderSessions(sessions);
       renderStats(sessions);
     }, (err) => {
@@ -395,11 +504,15 @@
     });
   }
 
+  // Formats a number as "$12.34" or "-$5.00" (sign in front of the $, not behind it)
   function fmtMoney(n) {
     const sign = n < 0 ? '-' : '';
     return `${sign}$${Math.abs(n).toFixed(2)}`;
   }
 
+  // Recomputes the 4 top summary numbers from the full session list.
+  // This runs client-side on every snapshot rather than being stored in
+  // Firestore, so it's always consistent with whatever's currently loaded.
   function renderStats(sessions) {
     const count = sessions.length;
     const net = sessions.reduce((sum, s) => sum + (s.cashOut - s.buyIn), 0);
@@ -409,22 +522,28 @@
 
     statSessions.textContent = count;
     statNet.textContent = fmtMoney(net);
-    statNet.className = 'val ' + (net > 0 ? 'win-val' : net < 0 ? 'loss-val' : '');
+    statNet.className = 'val ' + (net > 0 ? 'win-val' : net < 0 ? 'loss-val' : ''); // green/red/neutral
     statAvg.textContent = fmtMoney(avg);
     statAvg.className = 'val ' + (avg > 0 ? 'win-val' : avg < 0 ? 'loss-val' : '');
     statWinRate.textContent = winRate + '%';
   }
 
+  // Rebuilds the History list from scratch every time the data changes.
+  // Simple to reason about at this scale (a handful of users, at most a
+  // few hundred sessions each) — no need for more elaborate DOM diffing.
   function renderSessions(sessions) {
     if (!sessions.length) {
       sessionList.innerHTML = '<div class="empty-state">No sessions yet — log your first one above.</div>';
       return;
     }
-    sessionList.innerHTML = '';
+    sessionList.innerHTML = ''; // clear previous render before re-adding all rows
     for (const s of sessions) {
       const net = s.cashOut - s.buyIn;
       const item = document.createElement('div');
       item.className = 'session-item';
+      // "date" is stored as "YYYY-MM-DD"; appending T00:00:00 makes JS parse
+      // it as local midnight instead of UTC midnight, avoiding an off-by-one-day
+      // display bug for users west of UTC.
       const dateDisplay = new Date(s.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
       const durText = s.durationMinutes ? ` · ${s.durationMinutes}m` : '';
       const locText = s.location ? ` · ${s.location}` : '';
@@ -436,10 +555,15 @@
         <div class="amt ${net > 0 ? 'win-val' : net < 0 ? 'loss-val' : ''}">${fmtMoney(net)}</div>
         <button class="del" title="Delete" data-id="${s.id}">✕</button>
       `;
+      // Wire up this row's delete button. Done per-row (rather than one
+      // listener on the whole list) since the whole list is rebuilt on
+      // every render anyway.
       item.querySelector('.del').addEventListener('click', async (e) => {
         const id = e.currentTarget.getAttribute('data-id');
         try {
           await deleteDoc(doc(db, 'sessions', id));
+          // No manual re-render needed here either — deleting the doc
+          // triggers the onSnapshot listener, which re-renders everything.
         } catch (err) {
           console.error(err);
         }
