@@ -105,6 +105,15 @@
      ============================================================ */
   #appScreen { display: none; } /* hidden by default; JS toggles this based on auth state */
 
+  /* ---- Tab nav: switches the app screen between "Sessions" and "Hand Breakdown" ---- */
+  .tab-nav { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab-btn {
+    flex: 1; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { background: var(--panel-2); color: var(--text); border-color: var(--accent-2); }
+
   /* Top row of 4 summary stat cards (Sessions / Net / Avg / Win rate) */
   .stats-grid {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;
@@ -117,7 +126,7 @@
   .stat-card .lbl { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
   .win-val { color: var(--win); } .loss-val { color: var(--loss); } /* used on any $ value, not just stat cards */
 
-  /* Generic card used for "Log a session" and "History" */
+  /* Generic card used for "Log a session", "History", and both Hand Breakdown panels */
   .panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 20px; margin-bottom: 24px;
@@ -144,9 +153,105 @@
   .empty-state { color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px 0; }
   #addError { color: var(--loss); font-size: 13px; margin-top: 4px; min-height: 16px; }
 
-  /* On narrow (phone) screens, show the 4 stat cards as a 2x2 grid instead of 1x4 */
+  /* ============================================================
+     HAND BREAKDOWN — poker hand replayer (cards, streets, betting
+     actions, hand evaluator, save/load) that lives in its own tab.
+     ============================================================ */
+  .poker-container { display: flex; flex-direction: column; gap: 18px; }
+
+  .card-group-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .card-group-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .card-group { display: flex; gap: 10px; flex-wrap: wrap; }
+  .card-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .card-select {
+    padding: 6px 8px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; font-size: 13px; width: 68px;
+  }
+  .card-select:focus { outline: none; border-color: var(--accent-2); }
+  .poker-card {
+    width: 44px; height: 60px; border-radius: 6px; background: #fff; color: #222;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; border: 1px solid var(--border);
+  }
+  .poker-card .suit { font-size: 18px; line-height: 1; }
+  .poker-card.suit-red { color: #c0392b; }
+  .poker-card.suit-black { color: #1a1a1a; }
+
+  .street {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .street-header { display: flex; align-items: center; justify-content: space-between; }
+  .street-name { font-size: 13px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .action-list-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .action-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-size: 13px;
+  }
+  .action-player { font-weight: 600; min-width: 64px; }
+  .action-type { color: var(--text-dim); flex: 1; }
+  .action-amount { font-weight: 700; }
+  .action-remove { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px; padding: 2px 6px; }
+  .action-remove:hover { color: var(--loss); }
+
+  .action-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .action-form select, .action-form input {
+    padding: 8px 10px; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; font-size: 13px; font-family: inherit;
+  }
+  .action-form input[type="number"] { width: 90px; }
+  .add-action-btn {
+    padding: 8px 14px; border-radius: 6px; border: none; background: var(--accent-2); color: #fff;
+    cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .add-action-btn:hover { filter: brightness(1.1); }
+
+  .pot-summary { font-size: 16px; font-weight: 700; text-align: center; margin: 18px 0 10px; }
+
+  .hand-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .deal-button {
+    flex: 1; min-width: 120px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600; background: var(--accent); color: #1a1400;
+  }
+  .deal-button:hover { filter: brightness(1.08); }
+  .deal-button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .deal-button.secondary:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .hand-result { text-align: center; font-size: 14px; font-weight: 600; color: var(--accent); }
+
+  .saved-hands-list { display: flex; flex-direction: column; gap: 10px; }
+  .saved-hand-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 13px;
+    align-items: start;
+  }
+  .saved-hand-main { display: flex; align-items: center; gap: 10px; grid-column: 1; }
+  .saved-hand-date { color: var(--text-dim); font-size: 12px; }
+  .saved-hand-board { grid-column: 1; }
+  .saved-hand-outcome { grid-column: 1; color: var(--text-dim); }
+  .saved-hand-pot { grid-column: 1; font-weight: 600; }
+  .saved-hand-actions { grid-column: 2; grid-row: 1 / span 4; display: flex; flex-direction: column; gap: 6px; align-self: center; }
+  .saved-hand-actions button {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; font-size: 12px;
+  }
+  .saved-hand-actions button:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .static-cards { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+  .mini-card {
+    display: inline-flex; padding: 2px 6px; border-radius: 4px; background: #fff;
+    font-weight: 700; font-size: 12px;
+  }
+  .mini-card.suit-red { color: #c0392b; }
+  .mini-card.suit-black { color: #1a1a1a; }
+
+  /* On narrow (phone) screens, show the 4 stat cards as a 2x2 grid instead of 1x4,
+     and shrink the poker cards / selects so 5-card rows still fit. */
   @media (max-width: 480px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .card-select { width: 56px; }
+    .poker-card { width: 38px; height: 52px; font-size: 14px; }
   }
 </style>
 </head>
@@ -198,74 +303,211 @@
   <!-- ============================================================
        APP SCREEN
        Hidden until a user is signed in (see #appScreen { display:none } above).
-       Three parts: stat summary, "log a session" form, session history.
+       Two tabs: Sessions (stat summary + log a session + history) and
+       Hand Breakdown (poker hand replayer + saved hands).
        ============================================================ -->
   <div id="appScreen">
 
-    <!-- Live-updating summary numbers, recalculated from all of the
-         signed-in user's sessions every time the data changes (see
-         renderStats() in the script) -->
-    <div class="stats-grid">
-      <div class="stat-card"><div class="val" id="statSessions">0</div><div class="lbl">Sessions</div></div>
-      <div class="stat-card"><div class="val" id="statNet">$0</div><div class="lbl">Net</div></div>
-      <div class="stat-card"><div class="val" id="statAvg">$0</div><div class="lbl">Avg / Session</div></div>
-      <div class="stat-card"><div class="val" id="statWinRate">0%</div><div class="lbl">Win Rate</div></div>
+    <!-- Tab nav — JS (switchTab) toggles which of #sessionsTab / #handTab is visible
+         and which button has the "active" style. -->
+    <div class="tab-nav">
+      <button type="button" class="tab-btn active" id="tabSessionsBtn">Sessions</button>
+      <button type="button" class="tab-btn" id="tabHandBtn">Hand Breakdown</button>
     </div>
 
-    <!-- Form to record a new poker/gambling session. Only Date, Buy-in and
-         Cash-out are required — Location, Duration and Notes are optional. -->
-    <div class="panel">
-      <h2>Log a session</h2>
-      <div class="row">
-        <div class="field">
-          <label>Date</label>
-          <input type="date" id="dateInput" />
+    <div id="sessionsTab">
+      <!-- Live-updating summary numbers, recalculated from all of the
+           signed-in user's sessions every time the data changes (see
+           renderStats() in the script) -->
+      <div class="stats-grid">
+        <div class="stat-card"><div class="val" id="statSessions">0</div><div class="lbl">Sessions</div></div>
+        <div class="stat-card"><div class="val" id="statNet">$0</div><div class="lbl">Net</div></div>
+        <div class="stat-card"><div class="val" id="statAvg">$0</div><div class="lbl">Avg / Session</div></div>
+        <div class="stat-card"><div class="val" id="statWinRate">0%</div><div class="lbl">Win Rate</div></div>
+      </div>
+
+      <!-- Form to record a new poker/gambling session. Only Date, Buy-in and
+           Cash-out are required — Location, Duration and Notes are optional. -->
+      <div class="panel">
+        <h2>Log a session</h2>
+        <div class="row">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="dateInput" />
+          </div>
+          <div class="field">
+            <label>Game type</label>
+            <select id="gameTypeInput">
+              <option>Cash Game</option>
+              <option>Tournament</option>
+              <option>Sports Betting</option>
+              <option>Other</option>
+            </select>
+          </div>
         </div>
         <div class="field">
-          <label>Game type</label>
-          <select id="gameTypeInput">
-            <option>Cash Game</option>
-            <option>Tournament</option>
-            <option>Sports Betting</option>
-            <option>Other</option>
-          </select>
+          <label>Location</label>
+          <input type="text" id="locationInput" placeholder="e.g. Commerce Casino, home game" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Buy-in ($)</label>
+            <input type="number" id="buyInInput" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="field">
+            <label>Cash-out ($)</label>
+            <input type="number" id="cashOutInput" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="field">
+            <label>Duration (min, optional)</label>
+            <input type="number" id="durationInput" placeholder="e.g. 180" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <textarea id="notesInput" rows="2" placeholder="Any notes about the session"></textarea>
+          <!-- Note: notes are saved to Firestore with the session, but the History
+               list below doesn't currently display them anywhere. -->
+        </div>
+        <button class="btn btn-primary" id="addSessionBtn">Add session</button>
+        <div id="addError"></div> <!-- validation / save-failure messages -->
+      </div>
+
+      <!-- Live list of the signed-in user's past sessions, newest first.
+           Populated entirely by JS (renderSessions()) — this placeholder
+           empty-state div gets replaced once any data loads. -->
+      <div class="panel">
+        <h2>History</h2>
+        <div class="session-list" id="sessionList">
+          <div class="empty-state">No sessions yet — log your first one above.</div>
         </div>
       </div>
-      <div class="field">
-        <label>Location</label>
-        <input type="text" id="locationInput" placeholder="e.g. Commerce Casino, home game" />
-      </div>
-      <div class="row">
-        <div class="field">
-          <label>Buy-in ($)</label>
-          <input type="number" id="buyInInput" step="0.01" placeholder="0.00" />
-        </div>
-        <div class="field">
-          <label>Cash-out ($)</label>
-          <input type="number" id="cashOutInput" step="0.01" placeholder="0.00" />
-        </div>
-        <div class="field">
-          <label>Duration (min, optional)</label>
-          <input type="number" id="durationInput" placeholder="e.g. 180" />
-        </div>
-      </div>
-      <div class="field">
-        <label>Notes (optional)</label>
-        <textarea id="notesInput" rows="2" placeholder="Any notes about the session"></textarea>
-        <!-- Note: notes are saved to Firestore with the session, but the History
-             list below doesn't currently display them anywhere. -->
-      </div>
-      <button class="btn btn-primary" id="addSessionBtn">Add session</button>
-      <div id="addError"></div> <!-- validation / save-failure messages -->
     </div>
 
-    <!-- Live list of the signed-in user's past sessions, newest first.
-         Populated entirely by JS (renderSessions()) — this placeholder
-         empty-state div gets replaced once any data loads. -->
-    <div class="panel">
-      <h2>History</h2>
-      <div class="session-list" id="sessionList">
-        <div class="empty-state">No sessions yet — log your first one above.</div>
+    <!-- ============================================================
+         HAND BREAKDOWN TAB
+         A poker hand replayer: pick your hole cards / board / (optional)
+         opponent hole cards, log betting actions street by street, and
+         see a live pot total + best-hand-so-far / winner readout. Hands
+         can be saved (to Firestore, scoped to the signed-in user, same
+         pattern as sessions) and reloaded later.
+         ============================================================ -->
+    <div id="handTab" style="display:none">
+      <div class="panel poker-panel">
+        <h2>Hand Breakdown</h2>
+
+        <div class="poker-container">
+          <div class="card-group-wrap">
+            <div class="card-group-label">Your Hand</div>
+            <div class="card-group" id="myHandGroup"></div>
+          </div>
+
+          <div class="street" data-street="preflop">
+            <div class="street-header"><span class="street-name">Preflop</span></div>
+            <div class="action-list" id="actions-preflop"></div>
+            <div class="action-form">
+              <select id="actionPlayer-preflop">
+                <option value="you">You</option>
+                <option value="opponent">Opponent</option>
+              </select>
+              <select id="actionType-preflop">
+                <option value="Bet">Bet</option>
+                <option value="Raise">Raise</option>
+                <option value="Call">Call</option>
+                <option value="Check">Check</option>
+                <option value="Fold">Fold</option>
+              </select>
+              <input type="number" min="0" step="0.01" id="actionAmount-preflop" placeholder="Amount" />
+              <button type="button" class="add-action-btn" data-street="preflop">Add</button>
+            </div>
+          </div>
+
+          <div class="street" data-street="flop">
+            <div class="street-header"><span class="street-name">Flop</span></div>
+            <div class="card-group-wrap"><div class="card-group" id="flopGroup"></div></div>
+            <div class="action-list" id="actions-flop"></div>
+            <div class="action-form">
+              <select id="actionPlayer-flop">
+                <option value="you">You</option>
+                <option value="opponent">Opponent</option>
+              </select>
+              <select id="actionType-flop">
+                <option value="Bet">Bet</option>
+                <option value="Raise">Raise</option>
+                <option value="Call">Call</option>
+                <option value="Check">Check</option>
+                <option value="Fold">Fold</option>
+              </select>
+              <input type="number" min="0" step="0.01" id="actionAmount-flop" placeholder="Amount" />
+              <button type="button" class="add-action-btn" data-street="flop">Add</button>
+            </div>
+          </div>
+
+          <div class="street" data-street="turn">
+            <div class="street-header"><span class="street-name">Turn</span></div>
+            <div class="card-group-wrap"><div class="card-group" id="turnGroup"></div></div>
+            <div class="action-list" id="actions-turn"></div>
+            <div class="action-form">
+              <select id="actionPlayer-turn">
+                <option value="you">You</option>
+                <option value="opponent">Opponent</option>
+              </select>
+              <select id="actionType-turn">
+                <option value="Bet">Bet</option>
+                <option value="Raise">Raise</option>
+                <option value="Call">Call</option>
+                <option value="Check">Check</option>
+                <option value="Fold">Fold</option>
+              </select>
+              <input type="number" min="0" step="0.01" id="actionAmount-turn" placeholder="Amount" />
+              <button type="button" class="add-action-btn" data-street="turn">Add</button>
+            </div>
+          </div>
+
+          <div class="street" data-street="river">
+            <div class="street-header"><span class="street-name">River</span></div>
+            <div class="card-group-wrap"><div class="card-group" id="riverGroup"></div></div>
+            <div class="action-list" id="actions-river"></div>
+            <div class="action-form">
+              <select id="actionPlayer-river">
+                <option value="you">You</option>
+                <option value="opponent">Opponent</option>
+              </select>
+              <select id="actionType-river">
+                <option value="Bet">Bet</option>
+                <option value="Raise">Raise</option>
+                <option value="Call">Call</option>
+                <option value="Check">Check</option>
+                <option value="Fold">Fold</option>
+              </select>
+              <input type="number" min="0" step="0.01" id="actionAmount-river" placeholder="Amount" />
+              <button type="button" class="add-action-btn" data-street="river">Add</button>
+            </div>
+          </div>
+
+          <div class="card-group-wrap">
+            <div class="card-group-label">Opponent Hand (optional)</div>
+            <div class="card-group" id="opponentHandGroup"></div>
+          </div>
+        </div>
+
+        <div class="pot-summary" id="potSummary">Pot: $0.00</div>
+
+        <div class="hand-actions">
+          <button type="button" class="deal-button" id="randomDealBtn">Random Deal</button>
+          <button type="button" class="deal-button secondary" id="clearCardsBtn">Clear Cards</button>
+          <button type="button" class="deal-button secondary" id="resetAllBtn">Reset All</button>
+          <button type="button" class="deal-button" id="saveHandBtn">Save Hand</button>
+        </div>
+
+        <p class="hand-result" id="handResult" style="display:none"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Saved Hands</h2>
+        <div class="saved-hands-list" id="savedHandsList">
+          <div class="empty-state">No saved hands yet.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -338,11 +580,31 @@
   const statAvg = document.getElementById('statAvg');
   const statWinRate = document.getElementById('statWinRate');
 
+  // Tab nav elements
+  const tabSessionsBtn = document.getElementById('tabSessionsBtn');
+  const tabHandBtn = document.getElementById('tabHandBtn');
+  const sessionsTab = document.getElementById('sessionsTab');
+  const handTab = document.getElementById('handTab');
+
   let isSignUpMode = false;        // false = "Sign in" form, true = "Create an account" form
   let unsubscribeSessions = null;  // holds the Firestore listener's cancel function (see below)
+  let unsubscribeHands = null;     // same, for the Hand Breakdown "Saved Hands" listener
 
   // Default the date field to today so most users don't have to touch it
   dateInput.valueAsDate = new Date();
+
+  // ---- Tab switching ----
+  // Sessions and Hand Breakdown are two independent panels sharing one
+  // signed-in app screen; only one is visible at a time.
+  function switchTab(tab) {
+    const isSessions = tab === 'sessions';
+    sessionsTab.style.display = isSessions ? 'block' : 'none';
+    handTab.style.display = isSessions ? 'none' : 'block';
+    tabSessionsBtn.classList.toggle('active', isSessions);
+    tabHandBtn.classList.toggle('active', !isSessions);
+  }
+  tabSessionsBtn.addEventListener('click', () => switchTab('sessions'));
+  tabHandBtn.addEventListener('click', () => switchTab('hand'));
 
   // ---- Auth mode toggle ----
   // Clicking "Sign up" / "Sign in" flips the form between the two modes by
@@ -410,20 +672,22 @@
   onAuthStateChanged(auth, (user) => {
     if (user) {
       // Signed in: show the app, hide the auth form, populate the user bar,
-      // and start listening for this user's session data.
+      // and start listening for this user's session + hand data.
       authScreen.style.display = 'none';
       appScreen.style.display = 'block';
       const name = user.displayName || user.email; // Google accounts have a display name; email accounts don't
       userBar.innerHTML = `<span>${name}</span><button id="signOutBtn">Sign out</button>`;
       document.getElementById('signOutBtn').addEventListener('click', () => signOut(auth));
       subscribeToSessions(user.uid);
+      subscribeToHands(user.uid);
     } else {
       // Signed out: show the auth form, hide the app, and stop listening
-      // for session data (no point paying for reads nobody can see).
+      // for session/hand data (no point paying for reads nobody can see).
       authScreen.style.display = 'block';
       appScreen.style.display = 'none';
       userBar.innerHTML = '';
       if (unsubscribeSessions) { unsubscribeSessions(); unsubscribeSessions = null; }
+      if (unsubscribeHands) { unsubscribeHands(); unsubscribeHands = null; }
     }
   });
 
@@ -571,6 +835,446 @@
       sessionList.appendChild(item);
     }
   }
+
+  /* ============================================================
+     HAND BREAKDOWN
+     A self-contained poker hand replayer. State lives in a handful
+     of plain JS variables (myHand, boardCards, opponentHand,
+     handStreets); every mutation calls renderHandUI(), which
+     rebuilds the dynamic parts of the DOM from that state — the
+     same "rebuild from scratch on every change" approach used above
+     for the session list, just applied to more pieces.
+
+     Cards are { rank, suit } objects. rank is one of
+     2-9, 'T','J','Q','K','A'; suit is one of Hearts/Diamonds/Clubs/Spades.
+     ============================================================ */
+
+  const SUITS = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+  const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+  const RANK_VALUES = RANKS.reduce((map, rank, i) => ({ ...map, [rank]: i + 2 }), {});
+  const SUIT_SYMBOLS = { Hearts: '♥', Diamonds: '♦', Spades: '♠', Clubs: '♣' };
+  const RED_SUITS = new Set(['Hearts', 'Diamonds']);
+  const STREETS = ['preflop', 'flop', 'turn', 'river'];
+  const STREET_LABELS = { preflop: 'Preflop', flop: 'Flop', turn: 'Turn', river: 'River' };
+  const AMOUNT_ACTIONS = new Set(['Bet', 'Raise', 'Call']);
+  const HAND_RANK_ORDER = [
+    'High Card', 'One Pair', 'Two Pair', 'Three of a Kind', 'Straight',
+    'Flush', 'Full House', 'Four of a Kind', 'Straight Flush', 'Royal Flush'
+  ];
+
+  function buildDeck() {
+    const deck = [];
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push({ rank, suit });
+      }
+    }
+    return deck;
+  }
+  const FULL_DECK = buildDeck();
+
+  function shuffleDeck(deck) {
+    const shuffled = [...deck];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  function suitSymbol(suit) { return SUIT_SYMBOLS[suit] || '?'; }
+  function cardKey(card) { return card ? `${card.rank}-${card.suit}` : ''; }
+  function parseCardKey(key) { const [rank, suit] = key.split('-'); return { rank, suit }; }
+  function emptyStreets() { return { preflop: [], flop: [], turn: [], river: [] }; }
+
+  // Sorts ranks numerically (2-10, J=11, Q=12, K=13, A=14) — needed for straight checking.
+  function getRankValues(cards) {
+    return cards.map(card => RANK_VALUES[card.rank] || Number(card.rank) || 0);
+  }
+  function getRankCounts(cards) {
+    const counts = {};
+    cards.forEach(card => { counts[card.rank] = (counts[card.rank] || 0) + 1; });
+    return counts;
+  }
+  function isFlush(cards) {
+    const suitCounts = {};
+    cards.forEach(card => { suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1; });
+    return Object.values(suitCounts).some(count => count >= 5);
+  }
+  function isStraight(cards) {
+    const values = [...new Set(getRankValues(cards))].sort((a, b) => a - b);
+    if (values.includes(14)) values.unshift(1); // Ace can also play low (A-2-3-4-5)
+    let run = 1;
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] === values[i - 1] + 1) {
+        run++;
+        if (run >= 5) return true;
+      } else if (values[i] !== values[i - 1]) {
+        run = 1;
+      }
+    }
+    return false;
+  }
+  function getStraightFlushRank(cards) {
+    const bySuit = {};
+    cards.forEach(card => {
+      if (!bySuit[card.suit]) bySuit[card.suit] = [];
+      bySuit[card.suit].push(card);
+    });
+    for (const group of Object.values(bySuit)) {
+      if (group.length < 5 || !isStraight(group)) continue;
+      const values = new Set(getRankValues(group));
+      if ([10, 11, 12, 13, 14].every(v => values.has(v))) return 'Royal Flush';
+      return 'Straight Flush';
+    }
+    return null;
+  }
+  // cards: all cards available to a player (hole cards + board). Returns the
+  // name of the best 5-card hand ("Royal Flush", "Full House", etc.).
+  function evaluatePokerHand(cards) {
+    if (!cards || cards.length < 5) return 'Not enough cards';
+    const straightFlush = getStraightFlushRank(cards);
+    if (straightFlush) return straightFlush;
+    const counts = Object.values(getRankCounts(cards)).sort((a, b) => b - a);
+    if (counts[0] === 4) return 'Four of a Kind';
+    if (counts[0] === 3 && counts[1] >= 2) return 'Full House';
+    if (isFlush(cards)) return 'Flush';
+    if (isStraight(cards)) return 'Straight';
+    if (counts[0] === 3) return 'Three of a Kind';
+    if (counts[0] === 2 && counts[1] === 2) return 'Two Pair';
+    if (counts[0] === 2) return 'One Pair';
+    return 'High Card';
+  }
+  // Compares two hand names by rank only (no kicker comparison).
+  function compareHands(mine, theirs) {
+    if (!mine || !theirs) return null;
+    const diff = HAND_RANK_ORDER.indexOf(mine) - HAND_RANK_ORDER.indexOf(theirs);
+    if (diff > 0) return 'you';
+    if (diff < 0) return 'opponent';
+    return 'tie';
+  }
+  function findFold(streets) {
+    for (const street of STREETS) {
+      const fold = streets[street].find(action => action.type === 'Fold');
+      if (fold) return { street, player: fold.player };
+    }
+    return null;
+  }
+  function potFromStreets(streets) {
+    return STREETS.reduce((sum, street) => {
+      return sum + streets[street].reduce((streetSum, action) => streetSum + (action.amount || 0), 0);
+    }, 0);
+  }
+
+  // ---- Hand Breakdown state ----
+  let myHand = [null, null];
+  let boardCards = [null, null, null, null, null];
+  let opponentHand = [null, null];
+  let handStreets = emptyStreets();
+  let savedHands = []; // loaded live from Firestore, see subscribeToHands()
+
+  function usedCardKeys() {
+    const keys = new Set();
+    ;[...myHand, ...boardCards, ...opponentHand].forEach(card => { if (card) keys.add(cardKey(card)); });
+    return keys;
+  }
+
+  // Builds the <option> list for one card <select>, disabling any card
+  // that's already placed elsewhere (except the one currently selected here).
+  function buildCardOptionsHTML(currentKey, usedKeys) {
+    let html = `<option value="">--</option>`;
+    for (const card of FULL_DECK) {
+      const key = cardKey(card);
+      const disabled = usedKeys.has(key) && key !== currentKey ? 'disabled' : '';
+      const selected = key === currentKey ? 'selected' : '';
+      html += `<option value="${key}" ${disabled} ${selected}>${card.rank}${suitSymbol(card.suit)}</option>`;
+    }
+    return html;
+  }
+
+  // Renders one row of card slots (a <select> + the face card once chosen)
+  // into containerEl, wiring each select's change handler to onChangeAt.
+  function renderCardGroup(containerEl, cards, onChangeAt) {
+    const usedKeys = usedCardKeys();
+    containerEl.innerHTML = '';
+    cards.forEach((card, i) => {
+      const slot = document.createElement('div');
+      slot.className = 'card-slot';
+      const select = document.createElement('select');
+      select.className = 'card-select';
+      select.innerHTML = buildCardOptionsHTML(cardKey(card), usedKeys);
+      select.addEventListener('change', (e) => {
+        const val = e.target.value;
+        onChangeAt(i, val ? parseCardKey(val) : null);
+      });
+      slot.appendChild(select);
+      if (card) {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'poker-card ' + (RED_SUITS.has(card.suit) ? 'suit-red' : 'suit-black');
+        cardEl.innerHTML = `${card.rank}<span class="suit">${suitSymbol(card.suit)}</span>`;
+        slot.appendChild(cardEl);
+      }
+      containerEl.appendChild(slot);
+    });
+  }
+
+  function updateMyHandAt(i, card) { myHand[i] = card; renderHandUI(); }
+  function updateBoardAt(i, card) { boardCards[i] = card; renderHandUI(); }
+  function updateOpponentHandAt(i, card) { opponentHand[i] = card; renderHandUI(); }
+
+  function renderActionList(street) {
+    const el = document.getElementById(`actions-${street}`);
+    const actions = handStreets[street];
+    if (!actions.length) {
+      el.innerHTML = '<p class="empty-state">No action yet</p>';
+      return;
+    }
+    el.innerHTML = '';
+    const ul = document.createElement('ul');
+    ul.className = 'action-list-items';
+    actions.forEach((action, i) => {
+      const li = document.createElement('li');
+      li.className = 'action-row';
+      const amountHTML = AMOUNT_ACTIONS.has(action.type) ? `<span class="action-amount">$${action.amount.toFixed(2)}</span>` : '';
+      li.innerHTML = `
+        <span class="action-player">${action.player === 'you' ? 'You' : 'Opponent'}</span>
+        <span class="action-type">${action.type}</span>
+        ${amountHTML}
+        <button type="button" class="action-remove" data-street="${street}" data-index="${i}">×</button>
+      `;
+      ul.appendChild(li);
+    });
+    el.appendChild(ul);
+    el.querySelectorAll('.action-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const s = e.currentTarget.getAttribute('data-street');
+        const idx = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+        handStreets[s].splice(idx, 1);
+        renderHandUI();
+      });
+    });
+  }
+
+  function addAction(street, action) {
+    handStreets[street].push({ id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, ...action });
+    renderHandUI();
+  }
+
+  // Wire up each street's "Add" button + amount-field show/hide, once, on load.
+  STREETS.forEach(street => {
+    const typeSelect = document.getElementById(`actionType-${street}`);
+    const amountInput = document.getElementById(`actionAmount-${street}`);
+    function syncAmountVisibility() {
+      amountInput.style.display = AMOUNT_ACTIONS.has(typeSelect.value) ? '' : 'none';
+    }
+    typeSelect.addEventListener('change', syncAmountVisibility);
+    syncAmountVisibility();
+
+    document.querySelector(`.add-action-btn[data-street="${street}"]`).addEventListener('click', () => {
+      const player = document.getElementById(`actionPlayer-${street}`).value;
+      const type = typeSelect.value;
+      const needsAmount = AMOUNT_ACTIONS.has(type);
+      const amount = needsAmount ? (parseFloat(amountInput.value) || 0) : 0;
+      addAction(street, { player, type, amount });
+      amountInput.value = '';
+    });
+  });
+
+  function handleRandomDeal() {
+    const deck = shuffleDeck(buildDeck());
+    myHand = deck.slice(0, 2);
+    opponentHand = deck.slice(2, 4);
+    boardCards = deck.slice(4, 9);
+    renderHandUI();
+  }
+  function handleClearCards() {
+    myHand = [null, null];
+    boardCards = [null, null, null, null, null];
+    opponentHand = [null, null];
+    renderHandUI();
+  }
+  function handleResetAll() {
+    handleClearCards();
+    handStreets = emptyStreets();
+    renderHandUI();
+  }
+
+  document.getElementById('randomDealBtn').addEventListener('click', handleRandomDeal);
+  document.getElementById('clearCardsBtn').addEventListener('click', handleClearCards);
+  document.getElementById('resetAllBtn').addEventListener('click', handleResetAll);
+  document.getElementById('saveHandBtn').addEventListener('click', saveCurrentHand);
+
+  // Works out the pot total and, once there's enough on the table to say
+  // something, a plain-English outcome line (who folded / who won showdown).
+  function computeOutcome() {
+    const filledBoard = boardCards.filter(Boolean);
+    const filledMyHand = myHand.filter(Boolean);
+    const filledOpponentHand = opponentHand.filter(Boolean);
+
+    const myResult = (filledMyHand.length === 2 && filledBoard.length >= 3)
+      ? evaluatePokerHand([...filledMyHand, ...filledBoard]) : null;
+    const opponentResult = (filledOpponentHand.length === 2 && filledBoard.length >= 3)
+      ? evaluatePokerHand([...filledOpponentHand, ...filledBoard]) : null;
+
+    const fold = findFold(handStreets);
+    const pot = potFromStreets(handStreets);
+
+    let outcome = null;
+    if (fold) {
+      const winner = fold.player === 'you' ? 'Opponent' : 'You';
+      const folder = fold.player === 'you' ? 'You' : 'Opponent';
+      outcome = `${winner} win${winner === 'You' ? '' : 's'} — ${folder} folded on the ${STREET_LABELS[fold.street]}.`;
+    } else if (myResult && opponentResult) {
+      const winner = compareHands(myResult, opponentResult);
+      if (winner === 'tie') {
+        outcome = `Split pot — both hold ${myResult} (kickers not compared).`;
+      } else {
+        const winnerLabel = winner === 'you' ? 'You win' : 'Opponent wins';
+        const winnerHand = winner === 'you' ? myResult : opponentResult;
+        const loserHand = winner === 'you' ? opponentResult : myResult;
+        outcome = `${winnerLabel} — ${winnerHand} beats ${loserHand}.`;
+      }
+    } else if (myResult) {
+      outcome = `Your hand: ${myResult}. Opponent cards unknown — no showdown comparison.`;
+    }
+    return { pot, outcome };
+  }
+
+  // Rebuilds every dynamic piece of the Hand Breakdown tab from current state.
+  function renderHandUI() {
+    renderCardGroup(document.getElementById('myHandGroup'), myHand, updateMyHandAt);
+    renderCardGroup(document.getElementById('flopGroup'), boardCards.slice(0, 3), (i, c) => updateBoardAt(i, c));
+    renderCardGroup(document.getElementById('turnGroup'), boardCards.slice(3, 4), (i, c) => updateBoardAt(3 + i, c));
+    renderCardGroup(document.getElementById('riverGroup'), boardCards.slice(4, 5), (i, c) => updateBoardAt(4 + i, c));
+    renderCardGroup(document.getElementById('opponentHandGroup'), opponentHand, updateOpponentHandAt);
+    STREETS.forEach(renderActionList);
+
+    const { pot, outcome } = computeOutcome();
+    document.getElementById('potSummary').textContent = `Pot: ${fmtMoney(pot)}`;
+    const resultEl = document.getElementById('handResult');
+    if (outcome) {
+      resultEl.textContent = outcome;
+      resultEl.style.display = '';
+    } else {
+      resultEl.style.display = 'none';
+    }
+  }
+
+  // ---- Save / load hands (Firestore, same per-user pattern as sessions) ----
+  async function saveCurrentHand() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const { pot, outcome } = computeOutcome();
+    const saveBtn = document.getElementById('saveHandBtn');
+    try {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      await addDoc(collection(db, 'hands'), {
+        userId: user.uid,
+        myHand,
+        boardCards,
+        opponentHand,
+        streets: handStreets,
+        pot,
+        outcome: outcome || null,
+        date: new Date().toISOString(),   // used for client-side sorting of the saved-hands list
+        createdAt: serverTimestamp()
+      });
+      // No manual re-render needed — the onSnapshot listener in
+      // subscribeToHands() below picks up the new doc automatically.
+    } catch (err) {
+      console.error(err);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Hand';
+    }
+  }
+
+  function loadHand(hand) {
+    myHand = hand.myHand || [null, null];
+    boardCards = hand.boardCards || [null, null, null, null, null];
+    opponentHand = hand.opponentHand || [null, null];
+    handStreets = hand.streets || emptyStreets();
+    renderHandUI();
+    switchTab('hand');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function staticCardsHTML(cards) {
+    const filled = (cards || []).filter(Boolean);
+    if (!filled.length) return '<span class="empty-state">—</span>';
+    return filled
+      .map(c => `<span class="mini-card ${RED_SUITS.has(c.suit) ? 'suit-red' : 'suit-black'}">${c.rank}${suitSymbol(c.suit)}</span>`)
+      .join('');
+  }
+
+  // Rebuilds the "Saved Hands" list from scratch every time the data changes,
+  // same approach as renderSessions() above.
+  function renderSavedHands() {
+    const el = document.getElementById('savedHandsList');
+    if (!savedHands.length) {
+      el.innerHTML = '<div class="empty-state">No saved hands yet.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    for (const hand of savedHands) {
+      const row = document.createElement('div');
+      row.className = 'saved-hand-row';
+      const dateDisplay = hand.date ? new Date(hand.date).toLocaleString() : '';
+      row.innerHTML = `
+        <div class="saved-hand-main">
+          <div class="static-cards">${staticCardsHTML(hand.myHand)}</div>
+          <span class="saved-hand-date">${dateDisplay}</span>
+        </div>
+        <div class="saved-hand-board static-cards">${staticCardsHTML(hand.boardCards)}</div>
+        <div class="saved-hand-outcome">${hand.outcome || 'Hand in progress'}</div>
+        <div class="saved-hand-pot">Pot: ${fmtMoney(hand.pot || 0)}</div>
+        <div class="saved-hand-actions">
+          <button type="button" class="load-hand-btn" data-id="${hand.id}">Load</button>
+          <button type="button" class="del-hand-btn" data-id="${hand.id}">Delete</button>
+        </div>
+      `;
+      el.appendChild(row);
+    }
+    el.querySelectorAll('.load-hand-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        const hand = savedHands.find(h => h.id === id);
+        if (hand) loadHand(hand);
+      });
+    });
+    el.querySelectorAll('.del-hand-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        try {
+          await deleteDoc(doc(db, 'hands', id));
+          // Deletion re-renders automatically via the onSnapshot listener below.
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    });
+  }
+
+  // Live Firestore listener for this user's saved hands. Deliberately queries
+  // by userId only (no orderBy) so it doesn't need its own composite index —
+  // the small per-user result set is sorted client-side by date instead.
+  function subscribeToHands(uid) {
+    if (unsubscribeHands) unsubscribeHands();
+    const q = query(collection(db, 'hands'), where('userId', '==', uid));
+    unsubscribeHands = onSnapshot(q, (snap) => {
+      savedHands = [];
+      snap.forEach(d => savedHands.push({ id: d.id, ...d.data() }));
+      savedHands.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      renderSavedHands();
+    }, (err) => {
+      console.error(err);
+    });
+  }
+
+  // Initial paint of the Hand Breakdown tab (empty card selects, "No action
+  // yet", $0.00 pot) so it looks right even before any sign-in/data arrives.
+  renderHandUI();
 </script>
 </body>
 </html>
