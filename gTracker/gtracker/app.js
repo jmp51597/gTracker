@@ -1396,3 +1396,15 @@
       gameHistoryList.appendChild(row);
     });
   }
+
+  // ---- PWA: service worker registration ----
+  // Caches the static app shell (HTML/CSS/JS/icons) so the app opens
+  // instantly and mostly works offline. Firestore/Auth calls are untouched —
+  // see sw.js for exactly what gets cached.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(err => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
