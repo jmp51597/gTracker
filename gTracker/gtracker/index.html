@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>gtracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Pinyon+Script&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,6 +16,17 @@
     <h1>g<span>tracker</span></h1>
     <div id="userBar"></div> <!-- filled in by JS: shows "<name> [Sign out]" once signed in -->
   </header>
+
+  <!-- Decorative marquee bulb-chase strip under the header — purely visual,
+       hidden from assistive tech. Respects prefers-reduced-motion (see CSS). -->
+  <div class="bulb-strip" aria-hidden="true">
+    <span class="bulb" style="--i:0"></span><span class="bulb" style="--i:1"></span><span class="bulb" style="--i:2"></span>
+    <span class="bulb" style="--i:3"></span><span class="bulb" style="--i:4"></span><span class="bulb" style="--i:5"></span>
+    <span class="bulb" style="--i:6"></span><span class="bulb" style="--i:7"></span><span class="bulb" style="--i:8"></span>
+    <span class="bulb" style="--i:9"></span><span class="bulb" style="--i:10"></span><span class="bulb" style="--i:11"></span>
+    <span class="bulb" style="--i:12"></span><span class="bulb" style="--i:13"></span><span class="bulb" style="--i:14"></span>
+    <span class="bulb" style="--i:15"></span>
+  </div>
 
   <!-- ============================================================
        AUTH SCREEN
@@ -54,16 +68,18 @@
   <!-- ============================================================
        APP SCREEN
        Hidden until a user is signed in (see #appScreen { display:none } above).
-       Two tabs: Sessions (stat summary + log a session + history) and
-       Hand Breakdown (poker hand replayer + saved hands).
+       Three tabs: Sessions (stat summary + log a session + history),
+       Hand Breakdown (poker hand replayer + saved hands), and Live Game
+       (in-person buy-in/rebuy/cash-out tracker by chip denomination).
        ============================================================ -->
   <div id="appScreen">
 
-    <!-- Tab nav — JS (switchTab) toggles which of #sessionsTab / #handTab is visible
-         and which button has the "active" style. -->
+    <!-- Tab nav — JS (switchTab) toggles which of #sessionsTab / #handTab / #gamesTab
+         is visible and which button has the "active" style. -->
     <div class="tab-nav">
       <button type="button" class="tab-btn active" id="tabSessionsBtn">Sessions</button>
       <button type="button" class="tab-btn" id="tabHandBtn">Hand Breakdown</button>
+      <button type="button" class="tab-btn" id="tabGamesBtn">Live Game</button>
     </div>
 
     <div id="sessionsTab">
@@ -243,6 +259,9 @@
         </div>
 
         <div class="pot-summary" id="potSummary">Pot: $0.00</div>
+        <!-- Shown only when there's an unmatched bet/raise to act on — see
+             computePotOdds() in app.js. Hidden (display:none) otherwise. -->
+        <div class="pot-odds" id="potOdds" style="display:none"></div>
 
         <div class="hand-actions">
           <button type="button" class="deal-button" id="randomDealBtn">Random Deal</button>
@@ -261,8 +280,96 @@
         </div>
       </div>
     </div>
+
+    <!-- ============================================================
+         LIVE GAME TAB
+         Tracks an in-person cash game: buy-ins, rebuys and cash-outs
+         are entered as chip counts (not raw dollar guesses), so the
+         end-of-night reconciliation can catch both a bookkeeping
+         mistake (dollar totals don't match) and a physically missing
+         chip (chip totals don't zero out) as two separate checks.
+         Only one game can be "active" per user at a time; ending one
+         moves it into the Past Games history below.
+         ============================================================ -->
+    <div id="gamesTab" style="display:none">
+      <!-- Shown only when there's no game currently in progress -->
+      <div class="panel" id="newGamePanel">
+        <h2>Start a Live Game</h2>
+        <p class="tab-intro">Set tonight's chip denominations, then track buy-ins, rebuys and cash-outs by chip count instead of by memory.</p>
+
+        <!-- Saved chip-set presets (e.g. "Thursday game") — click to load into the
+             editor below, click × to delete. Populated by renderChipPresetBar(). -->
+        <div class="chip-preset-bar" id="chipPresetBar"></div>
+
+        <div class="chip-set-editor" id="chipSetEditor"></div>
+        <button type="button" class="btn-link" id="addDenominationBtn">+ Add denomination</button>
+
+        <div class="save-preset-row">
+          <input type="text" id="presetNameInput" placeholder="Name this chip set (e.g. Thursday game)" />
+          <button type="button" class="btn-secondary" id="savePresetBtn">Save chip set</button>
+        </div>
+
+        <button class="btn btn-primary" id="startGameBtn" style="margin-top:16px">Start Game</button>
+        <div id="startGameError" class="form-error"></div>
+      </div>
+
+      <!-- Shown only while a game is in progress -->
+      <div id="activeGamePanel" style="display:none">
+        <div class="panel game-summary-panel">
+          <h2>Tonight's Game</h2>
+          <div class="game-totals-grid">
+            <div class="stat-card"><div class="val" id="gameTotalBuyIns">$0</div><div class="lbl">Total Buy-ins</div></div>
+            <div class="stat-card"><div class="val" id="gameTotalCashedOut">$0</div><div class="lbl">Cashed Out</div></div>
+            <div class="stat-card"><div class="val" id="gameOnTable">$0</div><div class="lbl">On the Table</div></div>
+          </div>
+          <!-- Live count of chips currently in play, by color — the running
+               number players can eyeball their physical stacks against. -->
+          <div class="chips-in-play" id="chipsInPlay"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Players</h2>
+          <div class="player-list" id="playerList"></div>
+          <div class="add-player-row">
+            <input type="text" id="newPlayerName" placeholder="Player name" />
+            <button type="button" class="btn-secondary" id="addPlayerBtn">Add player</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>End Game</h2>
+          <button class="btn btn-primary" id="endGameBtn">End Game &amp; Reconcile</button>
+          <div id="endGameWarning" class="form-error"></div>
+        </div>
+      </div>
+
+      <!-- Shown right after ending a game, and again when a past game is
+           clicked in the history list below. Filled in by renderReconciliation(). -->
+      <div class="panel" id="reconcilePanel" style="display:none"></div>
+
+      <div class="panel">
+        <h2>Past Games</h2>
+        <div class="game-history-list" id="gameHistoryList">
+          <div class="empty-state">No completed games yet.</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<!-- Shared chip-counting popup, reused for Buy-in, Rebuy and Cash Out —
+     see openChipDialog() in app.js. Lives outside .wrap since <dialog>
+     positions itself via the browser's top layer regardless. -->
+<dialog id="chipDialog" class="chip-dialog">
+  <h3 id="chipDialogTitle">Buy-in</h3>
+  <div class="chip-dialog-rows" id="chipDialogRows"></div>
+  <div class="chip-dialog-total">Total: <span id="chipDialogTotal">$0.00</span></div>
+  <div id="chipDialogError" class="form-error"></div>
+  <div class="chip-dialog-actions">
+    <button type="button" class="btn-secondary" id="chipDialogCancel">Cancel</button>
+    <button type="button" class="btn btn-primary" id="chipDialogConfirm">Confirm</button>
+  </div>
+</dialog>
 
 <script type="module" src="app.js"></script>
 </body>

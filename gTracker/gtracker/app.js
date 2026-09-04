@@ -9,7 +9,7 @@
     GoogleAuthProvider, signInWithPopup, signOut
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getFirestore, collection, addDoc, deleteDoc, doc, query, where, onSnapshot,
+    getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot,
     serverTimestamp, orderBy
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -67,28 +67,65 @@
   // Tab nav elements
   const tabSessionsBtn = document.getElementById('tabSessionsBtn');
   const tabHandBtn = document.getElementById('tabHandBtn');
+  const tabGamesBtn = document.getElementById('tabGamesBtn');
   const sessionsTab = document.getElementById('sessionsTab');
   const handTab = document.getElementById('handTab');
+  const gamesTab = document.getElementById('gamesTab');
+
+  // Live Game tab elements
+  const newGamePanel = document.getElementById('newGamePanel');
+  const chipPresetBar = document.getElementById('chipPresetBar');
+  const chipSetEditor = document.getElementById('chipSetEditor');
+  const addDenominationBtn = document.getElementById('addDenominationBtn');
+  const presetNameInput = document.getElementById('presetNameInput');
+  const savePresetBtn = document.getElementById('savePresetBtn');
+  const startGameBtn = document.getElementById('startGameBtn');
+  const startGameError = document.getElementById('startGameError');
+  const activeGamePanel = document.getElementById('activeGamePanel');
+  const gameTotalBuyIns = document.getElementById('gameTotalBuyIns');
+  const gameTotalCashedOut = document.getElementById('gameTotalCashedOut');
+  const gameOnTable = document.getElementById('gameOnTable');
+  const chipsInPlay = document.getElementById('chipsInPlay');
+  const playerList = document.getElementById('playerList');
+  const newPlayerName = document.getElementById('newPlayerName');
+  const addPlayerBtn = document.getElementById('addPlayerBtn');
+  const endGameBtn = document.getElementById('endGameBtn');
+  const endGameWarning = document.getElementById('endGameWarning');
+  const reconcilePanel = document.getElementById('reconcilePanel');
+  const gameHistoryList = document.getElementById('gameHistoryList');
+
+  // Chip counter dialog (shared by Buy-in, Rebuy and Cash Out)
+  const chipDialog = document.getElementById('chipDialog');
+  const chipDialogTitle = document.getElementById('chipDialogTitle');
+  const chipDialogRows = document.getElementById('chipDialogRows');
+  const chipDialogTotal = document.getElementById('chipDialogTotal');
+  const chipDialogError = document.getElementById('chipDialogError');
+  const chipDialogCancel = document.getElementById('chipDialogCancel');
+  const chipDialogConfirm = document.getElementById('chipDialogConfirm');
 
   let isSignUpMode = false;        // false = "Sign in" form, true = "Create an account" form
   let unsubscribeSessions = null;  // holds the Firestore listener's cancel function (see below)
   let unsubscribeHands = null;     // same, for the Hand Breakdown "Saved Hands" listener
+  let unsubscribeGames = null;     // same, for the Live Game tab's active/past games listener
+  let unsubscribeChipPresets = null; // same, for the Live Game tab's saved chip-set presets
 
   // Default the date field to today so most users don't have to touch it
   dateInput.valueAsDate = new Date();
 
   // ---- Tab switching ----
-  // Sessions and Hand Breakdown are two independent panels sharing one
-  // signed-in app screen; only one is visible at a time.
+  // Sessions, Hand Breakdown and Live Game are three independent panels
+  // sharing one signed-in app screen; only one is visible at a time.
   function switchTab(tab) {
-    const isSessions = tab === 'sessions';
-    sessionsTab.style.display = isSessions ? 'block' : 'none';
-    handTab.style.display = isSessions ? 'none' : 'block';
-    tabSessionsBtn.classList.toggle('active', isSessions);
-    tabHandBtn.classList.toggle('active', !isSessions);
+    sessionsTab.style.display = tab === 'sessions' ? 'block' : 'none';
+    handTab.style.display = tab === 'hand' ? 'block' : 'none';
+    gamesTab.style.display = tab === 'games' ? 'block' : 'none';
+    tabSessionsBtn.classList.toggle('active', tab === 'sessions');
+    tabHandBtn.classList.toggle('active', tab === 'hand');
+    tabGamesBtn.classList.toggle('active', tab === 'games');
   }
   tabSessionsBtn.addEventListener('click', () => switchTab('sessions'));
   tabHandBtn.addEventListener('click', () => switchTab('hand'));
+  tabGamesBtn.addEventListener('click', () => switchTab('games'));
 
   // ---- Auth mode toggle ----
   // Clicking "Sign up" / "Sign in" flips the form between the two modes by
@@ -156,7 +193,7 @@
   onAuthStateChanged(auth, (user) => {
     if (user) {
       // Signed in: show the app, hide the auth form, populate the user bar,
-      // and start listening for this user's session + hand data.
+      // and start listening for this user's session + hand + live-game data.
       authScreen.style.display = 'none';
       appScreen.style.display = 'block';
       const name = user.displayName || user.email; // Google accounts have a display name; email accounts don't
@@ -164,14 +201,18 @@
       document.getElementById('signOutBtn').addEventListener('click', () => signOut(auth));
       subscribeToSessions(user.uid);
       subscribeToHands(user.uid);
+      subscribeToGames(user.uid);
+      subscribeToChipPresets(user.uid);
     } else {
       // Signed out: show the auth form, hide the app, and stop listening
-      // for session/hand data (no point paying for reads nobody can see).
+      // for session/hand/game data (no point paying for reads nobody can see).
       authScreen.style.display = 'block';
       appScreen.style.display = 'none';
       userBar.innerHTML = '';
       if (unsubscribeSessions) { unsubscribeSessions(); unsubscribeSessions = null; }
       if (unsubscribeHands) { unsubscribeHands(); unsubscribeHands = null; }
+      if (unsubscribeGames) { unsubscribeGames(); unsubscribeGames = null; }
+      if (unsubscribeChipPresets) { unsubscribeChipPresets(); unsubscribeChipPresets = null; }
     }
   });
 
@@ -450,6 +491,49 @@
     }, 0);
   }
 
+  // Pot odds: how good a price the player facing the most recent bet/raise
+  // is getting on a call, expressed as "pot : call" and as the equity
+  // (win %) needed for that call to break even.
+  //
+  // This is a simple log, not a strict turn-by-turn engine, so "the
+  // decision on the table right now" is inferred as: the very last action
+  // recorded across all streets (in street order). If that action is a Bet
+  // or Raise, the *other* player is the one facing a call; a Check, Call,
+  // or Fold means nothing is currently owed, so there's no odds to show.
+  // `pot` is the running pot total (potFromStreets), which already
+  // includes the outstanding bet — it does not yet include the call itself.
+  function computePotOdds(streets, pot) {
+    if (findFold(streets)) return null; // hand's already over, no decision pending
+
+    let lastAction = null;
+    for (const street of STREETS) {
+      const actions = streets[street];
+      if (actions.length) lastAction = actions[actions.length - 1];
+    }
+    if (!lastAction) return null;
+    if (lastAction.type !== 'Bet' && lastAction.type !== 'Raise') return null;
+    const callAmount = lastAction.amount || 0;
+    if (callAmount <= 0) return null;
+
+    const caller = lastAction.player === 'you' ? 'opponent' : 'you'; // whoever didn't make the bet owes the call
+    const potAfterCall = pot + callAmount; // total pot once the call is made
+    const equityNeeded = (callAmount / potAfterCall) * 100; // % equity required to break even on a call
+    const ratio = pot / callAmount; // "pot-to-call" ratio, e.g. 3 means "3 to 1"
+
+    return { caller, callAmount, pot, potAfterCall, equityNeeded, ratio };
+  }
+
+  // Shared text formatter used by both the live tool (renderHandUI) and the
+  // Saved Hands list (renderSavedHands), so a saved hand's pot odds read
+  // exactly the way they did at save time.
+  function formatPotOddsText(potOdds) {
+    const ratioDecimals = Number.isInteger(potOdds.ratio) ? 0 : 1;
+    const ratioText = `${potOdds.ratio.toFixed(ratioDecimals)} : 1`;
+    const whoText = potOdds.caller === 'you' ? 'You' : 'Opponent';
+    return `Pot Odds — ${whoText} facing ${ratioText}: call ${fmtMoney(potOdds.callAmount)} to win `
+      + `${fmtMoney(potOdds.potAfterCall)} (needs ${potOdds.equityNeeded.toFixed(1)}% equity to break even)`;
+  }
+
   // ---- Hand Breakdown state ----
   let myHand = [null, null];
   let boardCards = [null, null, null, null, null];
@@ -602,6 +686,7 @@
 
     const fold = findFold(handStreets);
     const pot = potFromStreets(handStreets);
+    const potOdds = computePotOdds(handStreets, pot);
 
     let outcome = null;
     if (fold) {
@@ -621,7 +706,7 @@
     } else if (myResult) {
       outcome = `Your hand: ${myResult}. Opponent cards unknown — no showdown comparison.`;
     }
-    return { pot, outcome };
+    return { pot, outcome, potOdds };
   }
 
   // Rebuilds every dynamic piece of the Hand Breakdown tab from current state.
@@ -633,8 +718,15 @@
     renderCardGroup(document.getElementById('opponentHandGroup'), opponentHand, updateOpponentHandAt);
     STREETS.forEach(renderActionList);
 
-    const { pot, outcome } = computeOutcome();
+    const { pot, outcome, potOdds } = computeOutcome();
     document.getElementById('potSummary').textContent = `Pot: ${fmtMoney(pot)}`;
+    const potOddsEl = document.getElementById('potOdds');
+    if (potOdds) {
+      potOddsEl.textContent = formatPotOddsText(potOdds);
+      potOddsEl.style.display = '';
+    } else {
+      potOddsEl.style.display = 'none';
+    }
     const resultEl = document.getElementById('handResult');
     if (outcome) {
       resultEl.textContent = outcome;
@@ -648,7 +740,7 @@
   async function saveCurrentHand() {
     const user = auth.currentUser;
     if (!user) return;
-    const { pot, outcome } = computeOutcome();
+    const { pot, outcome, potOdds } = computeOutcome();
     const saveBtn = document.getElementById('saveHandBtn');
     try {
       saveBtn.disabled = true;
@@ -661,6 +753,7 @@
         streets: handStreets,
         pot,
         outcome: outcome || null,
+        potOdds: potOdds || null,         // snapshot of the pot odds at save time (see formatPotOddsText)
         date: new Date().toISOString(),   // used for client-side sorting of the saved-hands list
         createdAt: serverTimestamp()
       });
@@ -713,6 +806,7 @@
         <div class="saved-hand-board static-cards">${staticCardsHTML(hand.boardCards)}</div>
         <div class="saved-hand-outcome">${hand.outcome || 'Hand in progress'}</div>
         <div class="saved-hand-pot">Pot: ${fmtMoney(hand.pot || 0)}</div>
+        ${hand.potOdds ? `<div class="saved-hand-pot-odds">${formatPotOddsText(hand.potOdds)}</div>` : ''}
         <div class="saved-hand-actions">
           <button type="button" class="load-hand-btn" data-id="${hand.id}">Load</button>
           <button type="button" class="del-hand-btn" data-id="${hand.id}">Delete</button>
@@ -759,3 +853,546 @@
   // Initial paint of the Hand Breakdown tab (empty card selects, "No action
   // yet", $0.00 pot) so it looks right even before any sign-in/data arrives.
   renderHandUI();
+
+  /* ============================================================
+     LIVE GAME
+     Tracks an in-person cash game by chip denomination rather than
+     free-typed dollar amounts, so the end-of-night count can be
+     checked two independent ways:
+       1) Dollar check — total cash-outs should equal total buy-ins.
+          If not, the *bookkeeping* has an error somewhere.
+       2) Chip check — every chip bought in should come back out at
+          cash-out. If the dollar check passes but chips are still
+          unaccounted for (or vice versa), a chip is physically
+          missing rather than a number being mistyped.
+
+     Data model (Firestore):
+       games/{gameId}: { userId, status: 'active'|'completed', chipSet,
+         players: [{ id, name, active, transactions: [
+           { type: 'buyin'|'rebuy'|'cashout', amount, chips: [{color,count}], at }
+         ] }], createdAt, completedAt }
+       chipPresets/{presetId}: { userId, name, chipSet, createdAt }
+     Both collections follow the same per-user ownership pattern as
+     `sessions` and `hands` — see claude/firebase-setup.md.
+
+     One game doc holds the whole game (players + every transaction) and
+     is updated with plain updateDoc() writes of the full `players` array;
+     at this scale (a handful of players, a live listener already open)
+     that's simpler than a transactions subcollection and still gives
+     every device watching this game a real-time view via onSnapshot.
+     ============================================================ */
+
+  const DEFAULT_CHIP_SET = [
+    { color: 'White', hex: '#f5f5f0', value: 1 },
+    { color: 'Red', hex: '#d1453a', value: 5 },
+    { color: 'Green', hex: '#3f9142', value: 25 },
+    { color: 'Black', hex: '#2b2b2b', value: 100 },
+  ];
+
+  let activeGame = null;        // the one in-progress game doc ({id, ...data}), or null
+  let completedGamesList = [];  // this user's finished games, newest first
+  let chipPresetsList = [];     // this user's saved chip-set presets ({id, name, chipSet})
+  let chipSetDraft = DEFAULT_CHIP_SET.map(d => ({ ...d })); // editable denominations for "Start a Live Game"
+
+  // ---- Chip-set editor (used in the "Start a Live Game" panel) ----
+  function renderChipSetEditor() {
+    chipSetEditor.innerHTML = '';
+    chipSetDraft.forEach((denom, i) => {
+      const row = document.createElement('div');
+      row.className = 'chip-set-row';
+      row.innerHTML = `
+        <input type="color" value="${denom.hex}" data-i="${i}" data-field="hex" title="Chip color" />
+        <input type="text" value="${denom.color}" placeholder="Color name" data-i="${i}" data-field="color" />
+        <input type="number" value="${denom.value}" min="0" step="0.01" placeholder="$ value" data-i="${i}" data-field="value" />
+        <button type="button" class="remove-denom" data-i="${i}" title="Remove denomination">✕</button>
+      `;
+      chipSetEditor.appendChild(row);
+    });
+    chipSetEditor.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const i = parseInt(e.target.getAttribute('data-i'), 10);
+        const field = e.target.getAttribute('data-field');
+        chipSetDraft[i][field] = field === 'value' ? (parseFloat(e.target.value) || 0) : e.target.value;
+      });
+    });
+    chipSetEditor.querySelectorAll('.remove-denom').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const i = parseInt(e.currentTarget.getAttribute('data-i'), 10);
+        chipSetDraft.splice(i, 1);
+        renderChipSetEditor();
+      });
+    });
+  }
+  addDenominationBtn.addEventListener('click', () => {
+    chipSetDraft.push({ color: '', hex: '#888888', value: 0 });
+    renderChipSetEditor();
+  });
+  renderChipSetEditor(); // initial paint, before any sign-in/data arrives
+
+  // Strips blank rows and coerces types; used before both starting a game
+  // and saving a preset, so both get the same validated shape.
+  function cleanChipSet(draft) {
+    return draft
+      .map(d => ({ color: (d.color || '').trim(), hex: d.hex || '#888888', value: parseFloat(d.value) || 0 }))
+      .filter(d => d.color && d.value > 0);
+  }
+
+  // ---- Saved chip-set presets ("if it's a game you play at often") ----
+  // Stored in Firestore (not just localStorage) so a preset saved on one
+  // device shows up on another, the same as sessions/hands.
+  function subscribeToChipPresets(uid) {
+    if (unsubscribeChipPresets) unsubscribeChipPresets();
+    const q = query(collection(db, 'chipPresets'), where('userId', '==', uid));
+    unsubscribeChipPresets = onSnapshot(q, (snap) => {
+      chipPresetsList = [];
+      snap.forEach(d => chipPresetsList.push({ id: d.id, ...d.data() }));
+      chipPresetsList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      renderChipPresetBar();
+    }, (err) => console.error(err));
+  }
+
+  function renderChipPresetBar() {
+    if (!chipPresetsList.length) {
+      chipPresetBar.innerHTML = '';
+      return;
+    }
+    chipPresetBar.innerHTML = '';
+    chipPresetsList.forEach(preset => {
+      const pill = document.createElement('span');
+      pill.className = 'chip-preset-pill';
+      pill.innerHTML = `<span class="preset-name">${preset.name}</span><button type="button" class="del-preset" data-id="${preset.id}" title="Delete this saved chip set">✕</button>`;
+      pill.querySelector('.preset-name').addEventListener('click', () => {
+        chipSetDraft = (preset.chipSet || []).map(d => ({ ...d }));
+        if (!chipSetDraft.length) chipSetDraft = DEFAULT_CHIP_SET.map(d => ({ ...d }));
+        renderChipSetEditor();
+      });
+      pill.querySelector('.del-preset').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          await deleteDoc(doc(db, 'chipPresets', preset.id));
+        } catch (err) { console.error(err); }
+      });
+      chipPresetBar.appendChild(pill);
+    });
+  }
+
+  savePresetBtn.addEventListener('click', async () => {
+    startGameError.textContent = '';
+    const user = auth.currentUser;
+    if (!user) return;
+    const name = presetNameInput.value.trim();
+    const cleanSet = cleanChipSet(chipSetDraft);
+    if (!name) { startGameError.textContent = 'Name this chip set before saving it.'; return; }
+    if (!cleanSet.length) { startGameError.textContent = 'Add at least one chip denomination with a name and a value greater than $0.'; return; }
+    try {
+      savePresetBtn.disabled = true;
+      savePresetBtn.textContent = 'Saving…';
+      await addDoc(collection(db, 'chipPresets'), {
+        userId: user.uid,
+        name,
+        chipSet: cleanSet,
+        createdAt: serverTimestamp(),
+      });
+      presetNameInput.value = '';
+      // The new pill appears automatically via the onSnapshot listener above.
+    } catch (err) {
+      startGameError.textContent = 'Could not save chip set. Try again.';
+      console.error(err);
+    } finally {
+      savePresetBtn.disabled = false;
+      savePresetBtn.textContent = 'Save chip set';
+    }
+  });
+
+  // ---- Start a new game ----
+  startGameBtn.addEventListener('click', async () => {
+    startGameError.textContent = '';
+    const user = auth.currentUser;
+    if (!user) return;
+    const cleanSet = cleanChipSet(chipSetDraft);
+    if (!cleanSet.length) {
+      startGameError.textContent = 'Add at least one chip denomination with a name and a value greater than $0.';
+      return;
+    }
+    try {
+      startGameBtn.disabled = true;
+      startGameBtn.textContent = 'Starting…';
+      await addDoc(collection(db, 'games'), {
+        userId: user.uid,
+        status: 'active',
+        chipSet: cleanSet,
+        players: [],
+        createdAt: serverTimestamp(),
+        completedAt: null,
+      });
+      // subscribeToGames() below will see the new active game and switch panels automatically.
+    } catch (err) {
+      startGameError.textContent = 'Could not start game. Try again.';
+      console.error(err);
+    } finally {
+      startGameBtn.disabled = false;
+      startGameBtn.textContent = 'Start Game';
+    }
+  });
+
+  // ---- Live listener: this user's active game + completed history ----
+  // Deliberately queries by userId only (no orderBy), same reasoning as
+  // subscribeToHands() above — avoids needing a composite index, and a
+  // single user's game count is small enough to sort client-side.
+  function subscribeToGames(uid) {
+    if (unsubscribeGames) unsubscribeGames();
+    const q = query(collection(db, 'games'), where('userId', '==', uid));
+    unsubscribeGames = onSnapshot(q, (snap) => {
+      const all = [];
+      snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+      activeGame = all.find(g => g.status === 'active') || null;
+      completedGamesList = all.filter(g => g.status === 'completed');
+      completedGamesList.sort((a, b) => {
+        const at = a.completedAt && a.completedAt.toMillis ? a.completedAt.toMillis() : 0;
+        const bt = b.completedAt && b.completedAt.toMillis ? b.completedAt.toMillis() : 0;
+        return bt - at;
+      });
+      renderGamesTab();
+    }, (err) => console.error(err));
+  }
+
+  function renderGamesTab() {
+    const hasActive = !!activeGame;
+    newGamePanel.style.display = hasActive ? 'none' : 'block';
+    activeGamePanel.style.display = hasActive ? 'block' : 'none';
+    if (hasActive) {
+      renderActiveGame(activeGame);
+      reconcilePanel.style.display = 'none'; // hide any previous reconciliation once a new game is active
+    }
+    renderGameHistory(completedGamesList);
+  }
+
+  // ---- Totals (computed client-side from the raw transactions, same
+  // "recompute on every render" approach as renderStats() above) ----
+  function playerTotals(player) {
+    let totalIn = 0, totalOut = 0;
+    (player.transactions || []).forEach(t => {
+      if (t.type === 'buyin' || t.type === 'rebuy') totalIn += t.amount;
+      if (t.type === 'cashout') totalOut += t.amount;
+    });
+    return { totalIn, totalOut, net: totalOut - totalIn };
+  }
+
+  function gameTotals(game) {
+    let totalBuyIns = 0, totalCashedOut = 0;
+    (game.players || []).forEach(p => {
+      const { totalIn, totalOut } = playerTotals(p);
+      totalBuyIns += totalIn;
+      totalCashedOut += totalOut;
+    });
+    return { totalBuyIns, totalCashedOut, onTable: totalBuyIns - totalCashedOut };
+  }
+
+  // Chips currently on the table, by color: every buy-in/rebuy chip adds,
+  // every cash-out chip subtracts. Tracked independently of the dollar
+  // totals above — this is the number that catches a physically missing
+  // (or extra) chip even when the dollar math happens to balance.
+  function chipsInPlayByColor(game) {
+    const totals = {};
+    (game.players || []).forEach(p => {
+      (p.transactions || []).forEach(t => {
+        const sign = t.type === 'cashout' ? -1 : 1;
+        (t.chips || []).forEach(c => {
+          totals[c.color] = (totals[c.color] || 0) + sign * c.count;
+        });
+      });
+    });
+    return totals;
+  }
+
+  function renderActiveGame(game) {
+    const totals = gameTotals(game);
+    gameTotalBuyIns.textContent = fmtMoney(totals.totalBuyIns);
+    gameTotalCashedOut.textContent = fmtMoney(totals.totalCashedOut);
+    gameOnTable.textContent = fmtMoney(totals.onTable);
+
+    const byColor = chipsInPlayByColor(game);
+    chipsInPlay.innerHTML = (game.chipSet || []).map(d => {
+      const count = byColor[d.color] || 0;
+      return `<span class="chip-pill"><span class="swatch" style="background:${d.hex}"></span>${count} × ${d.color} ($${d.value})</span>`;
+    }).join('');
+
+    playerList.innerHTML = '';
+    if (!game.players.length) {
+      playerList.innerHTML = '<div class="empty-state">No players yet — add one below.</div>';
+    }
+    game.players.forEach(p => {
+      const { totalIn, net } = playerTotals(p);
+      const cashedOut = p.active === false;
+      const row = document.createElement('div');
+      row.className = 'player-row' + (cashedOut ? ' cashed-out' : '');
+      row.innerHTML = `
+        <div class="player-meta">
+          <div class="player-name">${p.name}</div>
+          <div class="player-sub">Buy-in: ${fmtMoney(totalIn)}${cashedOut ? ' · Cashed out' : ''}</div>
+        </div>
+        <div class="player-net ${net > 0 ? 'win-val' : net < 0 ? 'loss-val' : ''}">${cashedOut ? fmtMoney(net) : '—'}</div>
+        <div class="player-actions">
+          ${cashedOut ? '' : `<button type="button" class="buyin-btn" data-id="${p.id}">${totalIn > 0 ? 'Rebuy' : 'Buy-in'}</button>`}
+          ${cashedOut ? '' : `<button type="button" class="cashout-btn" data-id="${p.id}">Cash Out</button>`}
+        </div>
+      `;
+      playerList.appendChild(row);
+    });
+    playerList.querySelectorAll('.buyin-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => openBuyInDialog(e.currentTarget.getAttribute('data-id')));
+    });
+    playerList.querySelectorAll('.cashout-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => openCashOutDialog(e.currentTarget.getAttribute('data-id')));
+    });
+  }
+
+  addPlayerBtn.addEventListener('click', async () => {
+    const name = newPlayerName.value.trim();
+    if (!name || !activeGame) return;
+    const newPlayer = { id: `p-${Date.now()}-${Math.round(Math.random() * 1e6)}`, name, active: true, transactions: [] };
+    const updatedPlayers = [...activeGame.players, newPlayer];
+    try {
+      await updateDoc(doc(db, 'games', activeGame.id), { players: updatedPlayers });
+      newPlayerName.value = '';
+    } catch (err) {
+      console.error(err);
+    }
+  });
+  newPlayerName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addPlayerBtn.click();
+  });
+
+  // ---- Shared chip-counting dialog (Buy-in, Rebuy, Cash Out) ----
+  // A single <dialog>, repopulated on each open — see the three call sites
+  // below rather than three near-identical dialogs.
+  let chipDialogContext = null; // { minAmount, getResult, onConfirm } for whichever action is open
+
+  function openChipDialog({ title, chipSet, confirmLabel, minAmount = 0, onConfirm }) {
+    chipDialogTitle.textContent = title;
+    chipDialogError.textContent = '';
+    chipDialogConfirm.textContent = confirmLabel || 'Confirm';
+    const counts = chipSet.map(() => 0);
+
+    function renderRows() {
+      chipDialogRows.innerHTML = '';
+      let total = 0;
+      chipSet.forEach((d, i) => {
+        total += counts[i] * d.value;
+        const row = document.createElement('div');
+        row.className = 'chip-dialog-row';
+        row.innerHTML = `
+          <span class="swatch" style="background:${d.hex}"></span>
+          <span class="denom-label">${d.color} ($${d.value})</span>
+          <span class="stepper">
+            <button type="button" class="step-down" data-i="${i}">−</button>
+            <input type="number" min="0" step="1" value="${counts[i]}" data-i="${i}" />
+            <button type="button" class="step-up" data-i="${i}">+</button>
+          </span>
+          <span class="row-subtotal">${fmtMoney(counts[i] * d.value)}</span>
+        `;
+        chipDialogRows.appendChild(row);
+      });
+      chipDialogTotal.textContent = fmtMoney(total);
+      chipDialogRows.querySelectorAll('.step-down').forEach(b => b.addEventListener('click', (e) => {
+        const i = parseInt(e.currentTarget.getAttribute('data-i'), 10);
+        counts[i] = Math.max(0, counts[i] - 1);
+        renderRows();
+      }));
+      chipDialogRows.querySelectorAll('.step-up').forEach(b => b.addEventListener('click', (e) => {
+        const i = parseInt(e.currentTarget.getAttribute('data-i'), 10);
+        counts[i] = counts[i] + 1;
+        renderRows();
+      }));
+      chipDialogRows.querySelectorAll('input[type="number"]').forEach(inp => inp.addEventListener('input', (e) => {
+        const i = parseInt(e.currentTarget.getAttribute('data-i'), 10);
+        counts[i] = Math.max(0, parseInt(e.currentTarget.value, 10) || 0);
+        renderRows();
+      }));
+    }
+    renderRows();
+
+    chipDialogContext = {
+      minAmount,
+      getResult: () => {
+        const total = chipSet.reduce((sum, d, i) => sum + counts[i] * d.value, 0);
+        const chips = chipSet.map((d, i) => ({ color: d.color, count: counts[i] })).filter(c => c.count > 0);
+        return { chips, amount: total };
+      },
+      onConfirm,
+    };
+    chipDialog.showModal();
+  }
+
+  chipDialogCancel.addEventListener('click', () => {
+    chipDialogError.textContent = '';
+    chipDialog.close();
+  });
+  chipDialogConfirm.addEventListener('click', async () => {
+    if (!chipDialogContext) { chipDialog.close(); return; }
+    const result = chipDialogContext.getResult();
+    if (result.amount < chipDialogContext.minAmount) {
+      chipDialogError.textContent = `Enter at least ${fmtMoney(chipDialogContext.minAmount)} in chips.`;
+      return;
+    }
+    chipDialogError.textContent = '';
+    await chipDialogContext.onConfirm(result);
+    chipDialog.close();
+  });
+
+  function openBuyInDialog(playerId) {
+    if (!activeGame) return;
+    const player = activeGame.players.find(p => p.id === playerId);
+    if (!player) return;
+    const isFirst = !(player.transactions || []).some(t => t.type === 'buyin' || t.type === 'rebuy');
+    openChipDialog({
+      title: `${isFirst ? 'Buy-in' : 'Rebuy'} — ${player.name}`,
+      chipSet: activeGame.chipSet,
+      confirmLabel: isFirst ? 'Confirm Buy-in' : 'Confirm Rebuy',
+      minAmount: 0.01, // a buy-in of $0 doesn't mean anything — require at least one chip
+      onConfirm: async ({ chips, amount }) => {
+        const tx = { type: isFirst ? 'buyin' : 'rebuy', amount, chips, at: new Date().toISOString() };
+        const updatedPlayers = activeGame.players.map(p => p.id === playerId
+          ? { ...p, transactions: [...(p.transactions || []), tx] }
+          : p);
+        try {
+          await updateDoc(doc(db, 'games', activeGame.id), { players: updatedPlayers });
+        } catch (err) { console.error(err); }
+      },
+    });
+  }
+
+  function openCashOutDialog(playerId) {
+    if (!activeGame) return;
+    const player = activeGame.players.find(p => p.id === playerId);
+    if (!player) return;
+    openChipDialog({
+      title: `Cash Out — ${player.name}`,
+      chipSet: activeGame.chipSet,
+      confirmLabel: 'Confirm Cash-out',
+      minAmount: 0, // $0 is valid — a player who busted out has nothing to cash
+      onConfirm: async ({ chips, amount }) => {
+        const tx = { type: 'cashout', amount, chips, at: new Date().toISOString() };
+        const updatedPlayers = activeGame.players.map(p => p.id === playerId
+          ? { ...p, active: false, transactions: [...(p.transactions || []), tx] }
+          : p);
+        try {
+          await updateDoc(doc(db, 'games', activeGame.id), { players: updatedPlayers });
+        } catch (err) { console.error(err); }
+      },
+    });
+  }
+
+  // ---- End game + reconciliation ----
+  endGameBtn.addEventListener('click', async () => {
+    endGameWarning.textContent = '';
+    if (!activeGame) return;
+    const stillIn = activeGame.players.filter(p => p.active !== false);
+    if (stillIn.length) {
+      endGameWarning.textContent = `${stillIn.length} player(s) haven't cashed out yet: ${stillIn.map(p => p.name).join(', ')}. Cash everyone out before ending the game.`;
+      return;
+    }
+    try {
+      endGameBtn.disabled = true;
+      await updateDoc(doc(db, 'games', activeGame.id), {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+      });
+      // Show the reconciliation immediately using what we just wrote, rather
+      // than waiting on the round-trip snapshot update.
+      renderReconciliation({ ...activeGame, status: 'completed' });
+    } catch (err) {
+      endGameWarning.textContent = 'Could not end game. Try again.';
+      console.error(err);
+    } finally {
+      endGameBtn.disabled = false;
+    }
+  });
+
+  // Minimal-transfer settle-up: nets every player's buy-ins vs. cash-out,
+  // then greedily matches the biggest debtor against the biggest creditor
+  // until everyone's at $0 — fewer Venmo transfers than "everyone pays the
+  // house, the house pays everyone."
+  function settleUp(players) {
+    const nets = (players || []).map(p => ({ name: p.name, net: playerTotals(p).net }));
+    const creditors = nets.filter(p => p.net > 0.005).map(p => ({ ...p })).sort((a, b) => b.net - a.net);
+    const debtors = nets.filter(p => p.net < -0.005).map(p => ({ name: p.name, net: -p.net })).sort((a, b) => b.net - a.net);
+    const transfers = [];
+    let ci = 0, di = 0;
+    while (ci < creditors.length && di < debtors.length) {
+      const amount = Math.min(creditors[ci].net, debtors[di].net);
+      transfers.push({ from: debtors[di].name, to: creditors[ci].name, amount });
+      creditors[ci].net -= amount;
+      debtors[di].net -= amount;
+      if (creditors[ci].net < 0.005) ci++;
+      if (debtors[di].net < 0.005) di++;
+    }
+    return transfers;
+  }
+
+  // Renders the dollar check, the chip check, and a settle-up list for one
+  // game — used both right after ending the active game and when a past
+  // game is clicked in the history list below.
+  function renderReconciliation(game) {
+    const totals = gameTotals(game);
+    const diff = totals.totalBuyIns - totals.totalCashedOut;
+    const balanced = Math.abs(diff) < 0.005;
+
+    const chipDiff = chipsInPlayByColor(game); // should be 0 for every color once everyone's cashed out
+    const chipDiffEntries = Object.entries(chipDiff).filter(([, v]) => v !== 0);
+
+    const settle = settleUp(game.players);
+
+    reconcilePanel.style.display = 'block';
+    reconcilePanel.innerHTML = `
+      <h2>Reconciliation</h2>
+      <div class="reconcile-status ${balanced ? 'balanced' : 'off'}">
+        ${balanced
+          ? '✓ Balanced — every dollar is accounted for.'
+          : `⚠ Off by ${fmtMoney(Math.abs(diff))} — ${diff > 0 ? 'less was cashed out than bought in' : 'more was cashed out than bought in'}. Recount the chips.`}
+      </div>
+      <div class="reconcile-grid">
+        <div class="stat-card"><div class="val">${fmtMoney(totals.totalBuyIns)}</div><div class="lbl">Total Buy-ins</div></div>
+        <div class="stat-card"><div class="val">${fmtMoney(totals.totalCashedOut)}</div><div class="lbl">Total Cash-outs</div></div>
+        <div class="stat-card"><div class="val ${balanced ? '' : 'loss-val'}">${fmtMoney(diff)}</div><div class="lbl">Difference</div></div>
+      </div>
+      ${chipDiffEntries.length ? `
+        <div class="reconcile-section-label">Chip count check — chips still unaccounted for</div>
+        <div class="chips-in-play">${chipDiffEntries.map(([color, v]) => `<span class="chip-pill">${color}: ${v > 0 ? '+' : ''}${v}</span>`).join('')}</div>
+      ` : ''}
+      <div class="reconcile-section-label">Settle Up</div>
+      <div class="settle-list">
+        ${settle.length ? settle.map(s => `<div class="settle-row"><span>${s.from} → ${s.to}</span><span>${fmtMoney(s.amount)}</span></div>`).join('') : '<div class="empty-state">Nothing to settle.</div>'}
+      </div>
+    `;
+  }
+
+  function renderGameHistory(games) {
+    if (!games.length) {
+      gameHistoryList.innerHTML = '<div class="empty-state">No completed games yet.</div>';
+      return;
+    }
+    gameHistoryList.innerHTML = '';
+    games.forEach(g => {
+      const totals = gameTotals(g);
+      const dateDisplay = (g.completedAt && g.completedAt.toDate)
+        ? g.completedAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : '';
+      const diff = totals.totalBuyIns - totals.totalCashedOut;
+      const balanced = Math.abs(diff) < 0.005;
+      const row = document.createElement('div');
+      row.className = 'game-history-row';
+      row.innerHTML = `
+        <div class="meta">
+          <div class="top">${(g.players || []).length} players · ${fmtMoney(totals.totalBuyIns)} on the table</div>
+          <div class="bottom">${dateDisplay}${balanced ? ' · Balanced' : ` · Off by ${fmtMoney(Math.abs(diff))}`}</div>
+        </div>
+        <span class="${balanced ? 'win-val' : 'loss-val'}">${balanced ? '✓' : '⚠'}</span>
+      `;
+      row.addEventListener('click', () => {
+        renderReconciliation(g);
+        reconcilePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      gameHistoryList.appendChild(row);
+    });
+  }

@@ -1,20 +1,25 @@
   /* ============================================================
      DESIGN TOKENS
-     CSS custom properties (variables) used everywhere below.
+     "Neon Felt" theme: a felt-green card room lit up after dark —
+     gold foil trim, and hot-pink / neon-teal glow standing in for
+     win/loss instead of plain green/red.
      Change a color/radius here once and it updates the whole app.
      ============================================================ */
   :root {
-    --bg: #0f1115;         /* page background (near-black) */
-    --panel: #171a21;      /* card/panel background, one shade up from bg */
-    --panel-2: #1f232c;    /* inputs / nested surfaces, one shade up from panel */
-    --border: #2a2f3a;     /* subtle border color used throughout */
-    --text: #e8eaed;       /* primary (near-white) text */
-    --text-dim: #9aa0ac;   /* secondary/muted text (labels, hints) */
-    --accent: #d4a537;     /* brand gold — logo, primary buttons */
-    --accent-2: #4a90e2;   /* blue — focus rings, links */
-    --win: #3ecf8e;        /* green — positive $ amounts */
-    --loss: #ef5b5b;       /* red — negative $ amounts, errors */
-    --radius: 10px;        /* corner radius for cards/panels */
+    --bg: #0a2118;          /* page background (dark felt green) */
+    --bg-top: #123d2c;      /* lighter green used for the top of the body's radial gradient */
+    --bg-bottom: #071810;   /* near-black green used at the bottom of the gradient */
+    --panel: #0f2e22;       /* card/panel background, one shade up from bg */
+    --panel-2: #143a2b;     /* inputs / nested surfaces, one shade up from panel */
+    --border: #2a5240;      /* subtle border color used throughout */
+    --text: #f3e6c8;        /* primary (warm cream) text */
+    --text-dim: #9fb0a2;    /* secondary/muted text (labels, hints) — sage green */
+    --accent: #d9a53d;      /* gold foil — logo, primary buttons, brand accents */
+    --accent-ink: #12261c;  /* dark text color used on top of gold buttons/badges */
+    --accent-2: #35e8d4;    /* neon teal — focus rings, links, secondary accents */
+    --win: #35e8d4;         /* neon teal — positive $ amounts */
+    --loss: #ff3f8e;        /* neon pink — negative $ amounts, errors */
+    --radius: 12px;         /* corner radius for cards/panels */
   }
 
   /* Make width/height include padding+border everywhere (predictable sizing) */
@@ -22,10 +27,19 @@
 
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
+    font-family: 'Libre Franklin', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* Felt table lit from above: brighter green fading down to near-black */
+    background: radial-gradient(ellipse at 50% -10%, var(--bg-top) 0%, var(--bg) 55%, var(--bg-bottom) 100%);
+    background-color: var(--bg); /* fallback + prevents a flash of unstyled bg before the gradient paints */
     color: var(--text);
     min-height: 100vh;
+  }
+  /* Faint diagonal weave, like felt fabric caught at an angle — very subtle, decorative only */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: -1;
+    background: repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 5px);
+    pointer-events: none;
   }
 
   /* Centered, max-width column that both the auth screen and app screen sit in */
@@ -34,18 +48,39 @@
   /* ---- Top header bar: "gtracker" logo on the left, user info/sign-out on the right ---- */
   header.app-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   header.app-header h1 {
-    font-size: 22px; margin: 0; letter-spacing: 0.5px;
+    font-family: 'Abril Fatface', serif;
+    font-size: 26px; margin: 0; letter-spacing: 0.5px; font-weight: 400;
+    color: var(--accent);
+    text-shadow: 0 0 14px rgba(217, 165, 61, 0.35);
   }
-  header.app-header h1 span { color: var(--accent); } /* the "tracker" part of "gtracker" is gold */
+  header.app-header h1 span {
+    color: var(--loss); /* the "tracker" part of "gtracker" is neon pink */
+    text-shadow: 0 0 12px rgba(255, 63, 142, 0.55);
+  }
   #userBar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dim); }
   #userBar button {
     background: transparent; border: 1px solid var(--border); color: var(--text-dim);
     padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
   }
   #userBar button:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* ---- Marquee bulb-chase strip: a row of small chasing gold lights under
+     the header, evoking an old casino sign's light-up border. Decorative
+     only (aria-hidden in the markup); animation is skipped entirely for
+     anyone who prefers reduced motion, falling back to a steady glow. ---- */
+  .bulb-strip { display: flex; gap: 9px; flex-wrap: wrap; margin: 0 0 24px; }
+  .bulb {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 5px var(--accent), 0 0 10px rgba(217, 165, 61, 0.6);
+    animation: bulb-chase 2.4s infinite;
+    animation-delay: calc(var(--i) * 0.12s);
+  }
+  @media (prefers-reduced-motion: reduce) { .bulb { animation: none; opacity: 0.85; } }
+  @keyframes bulb-chase { 0%, 100% { opacity: 0.25; } 15% { opacity: 1; } 30% { opacity: 0.25; } }
 
   /* ============================================================
      AUTH SCREEN — shown when nobody is signed in
@@ -54,8 +89,15 @@
     max-width: 360px; margin: 60px auto; background: var(--panel);
     border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;
   }
-  #authScreen h2 { margin-top: 0; font-size: 20px; }
-  #authScreen p.sub { color: var(--text-dim); font-size: 13px; margin-top: -8px; margin-bottom: 20px; }
+  #authScreen h2 {
+    margin-top: 0; font-size: 24px; font-family: 'Abril Fatface', serif; font-weight: 400;
+    color: var(--accent);
+  }
+  #authScreen p.sub {
+    font-family: 'Pinyon Script', cursive;
+    color: var(--accent-2); font-size: 20px; margin-top: -6px; margin-bottom: 22px;
+    text-shadow: 0 0 8px rgba(53, 232, 212, 0.35);
+  }
 
   /* Generic form field wrapper (label + input), reused on both auth and log-session forms */
   .field { margin-bottom: 14px; }
@@ -72,7 +114,10 @@
     width: 100%; padding: 11px 14px; border-radius: 8px; border: none; cursor: pointer;
     font-size: 14px; font-weight: 600; margin-top: 4px;
   }
-  .btn-primary { background: var(--accent); color: #1a1400; }
+  .btn-primary {
+    background: var(--accent); color: var(--accent-ink);
+    box-shadow: 0 0 0 1px rgba(217, 165, 61, 0.4), 0 4px 16px rgba(255, 63, 142, 0.25);
+  }
   .btn-primary:hover { filter: brightness(1.08); }
   .btn-google {
     background: #fff; color: #222; /* Google's brand guidelines want a white button with the multi-color "G" */
@@ -98,7 +143,7 @@
      ============================================================ */
   #appScreen { display: none; } /* hidden by default; JS toggles this based on auth state */
 
-  /* ---- Tab nav: switches the app screen between "Sessions" and "Hand Breakdown" ---- */
+  /* ---- Tab nav: switches the app screen between Sessions / Hand Breakdown / Live Game ---- */
   .tab-nav { display: flex; gap: 8px; margin-bottom: 20px; }
   .tab-btn {
     flex: 1; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border);
@@ -107,7 +152,8 @@
   .tab-btn:hover { color: var(--text); }
   .tab-btn.active { background: var(--panel-2); color: var(--text); border-color: var(--accent-2); }
 
-  /* Top row of 4 summary stat cards (Sessions / Net / Avg / Win rate) */
+  /* Top row of 4 summary stat cards (Sessions / Net / Avg / Win rate) —
+     also reused (as a 3-up grid) for the Live Game totals. */
   .stats-grid {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;
   }
@@ -115,11 +161,15 @@
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 14px 10px; text-align: center;
   }
-  .stat-card .val { font-size: 18px; font-weight: 700; }
+  .stat-card .val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .stat-card .lbl { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-  .win-val { color: var(--win); } .loss-val { color: var(--loss); } /* used on any $ value, not just stat cards */
+  /* Win/loss no longer plain green/red — neon teal and neon pink, each with a soft glow,
+     used on any $ value (stat cards, session rows), not just here. */
+  .win-val { color: var(--win); text-shadow: 0 0 8px rgba(53, 232, 212, 0.45); }
+  .loss-val { color: var(--loss); text-shadow: 0 0 8px rgba(255, 63, 142, 0.45); }
 
-  /* Generic card used for "Log a session", "History", and both Hand Breakdown panels */
+  /* Generic card used for "Log a session", "History", both Hand Breakdown
+     panels, and every Live Game panel */
   .panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 20px; margin-bottom: 24px;
@@ -136,12 +186,12 @@
   .session-item .meta { font-size: 13px; }
   .session-item .meta .top { font-weight: 600; }              /* game type + location */
   .session-item .meta .bottom { color: var(--text-dim); font-size: 12px; margin-top: 2px; } /* date + duration */
-  .session-item .amt { font-weight: 700; font-size: 15px; white-space: nowrap; margin-left: 10px; } /* net $ for that session */
+  .session-item .amt { font-weight: 700; font-size: 15px; white-space: nowrap; margin-left: 10px; font-variant-numeric: tabular-nums; } /* net $ for that session */
   .session-item .del {
     background: transparent; border: none; color: var(--text-dim); cursor: pointer;
     font-size: 16px; margin-left: 10px; padding: 4px 8px;
   }
-  .session-item .del:hover { color: var(--loss); } /* delete "✕" turns red on hover */
+  .session-item .del:hover { color: var(--loss); } /* delete "✕" turns neon pink on hover */
 
   .empty-state { color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px 0; }
   #addError { color: var(--loss); font-size: 13px; margin-top: 4px; min-height: 16px; }
@@ -161,10 +211,12 @@
     border-radius: 6px; font-size: 13px; width: 68px;
   }
   .card-select:focus { outline: none; border-color: var(--accent-2); }
+  /* Card faces stay traditional white-with-red/black-suits — they're meant to
+     read as real playing cards on the felt, not reskinned to the app palette. */
   .poker-card {
-    width: 44px; height: 60px; border-radius: 6px; background: #fff; color: #222;
+    width: 44px; height: 60px; border-radius: 6px; background: #fdf8ee; color: #222;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px; border: 1px solid var(--border);
+    font-weight: 700; font-size: 16px; border: 1px solid rgba(217, 165, 61, 0.45);
   }
   .poker-card .suit { font-size: 18px; line-height: 1; }
   .poker-card.suit-red { color: #c0392b; }
@@ -184,7 +236,7 @@
   }
   .action-player { font-weight: 600; min-width: 64px; }
   .action-type { color: var(--text-dim); flex: 1; }
-  .action-amount { font-weight: 700; }
+  .action-amount { font-weight: 700; font-variant-numeric: tabular-nums; }
   .action-remove { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px; padding: 2px 6px; }
   .action-remove:hover { color: var(--loss); }
 
@@ -195,17 +247,27 @@
   }
   .action-form input[type="number"] { width: 90px; }
   .add-action-btn {
-    padding: 8px 14px; border-radius: 6px; border: none; background: var(--accent-2); color: #fff;
+    /* Teal background is light, so its label needs a dark ink, not white, to stay readable */
+    padding: 8px 14px; border-radius: 6px; border: none; background: var(--accent-2); color: var(--bg);
     cursor: pointer; font-size: 13px; font-weight: 600;
   }
   .add-action-btn:hover { filter: brightness(1.1); }
 
-  .pot-summary { font-size: 16px; font-weight: 700; text-align: center; margin: 18px 0 10px; }
+  .pot-summary { font-size: 16px; font-weight: 700; text-align: center; margin: 18px 0 10px; font-variant-numeric: tabular-nums; }
+
+  /* Shown only while there's an unmatched bet/raise to act on (see
+     computePotOdds() in app.js) — the ratio/equity readout that helps
+     decide whether a call is profitable. */
+  .pot-odds {
+    font-size: 13px; font-weight: 600; text-align: center; color: var(--text-dim);
+    margin: 0 0 14px; font-variant-numeric: tabular-nums;
+  }
+  .pot-odds .pot-odds-eq { color: var(--accent); }
 
   .hand-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
   .deal-button {
     flex: 1; min-width: 120px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 600; background: var(--accent); color: #1a1400;
+    font-size: 13px; font-weight: 600; background: var(--accent); color: var(--accent-ink);
   }
   .deal-button:hover { filter: brightness(1.08); }
   .deal-button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
@@ -223,8 +285,9 @@
   .saved-hand-date { color: var(--text-dim); font-size: 12px; }
   .saved-hand-board { grid-column: 1; }
   .saved-hand-outcome { grid-column: 1; color: var(--text-dim); }
-  .saved-hand-pot { grid-column: 1; font-weight: 600; }
-  .saved-hand-actions { grid-column: 2; grid-row: 1 / span 4; display: flex; flex-direction: column; gap: 6px; align-self: center; }
+  .saved-hand-pot { grid-column: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .saved-hand-pot-odds { grid-column: 1; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .saved-hand-actions { grid-column: 2; grid-row: 1 / span 5; display: flex; flex-direction: column; gap: 6px; align-self: center; }
   .saved-hand-actions button {
     padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent;
     color: var(--text-dim); cursor: pointer; font-size: 12px;
@@ -233,11 +296,149 @@
 
   .static-cards { display: inline-flex; flex-wrap: wrap; gap: 4px; }
   .mini-card {
-    display: inline-flex; padding: 2px 6px; border-radius: 4px; background: #fff;
+    display: inline-flex; padding: 2px 6px; border-radius: 4px; background: #fdf8ee;
     font-weight: 700; font-size: 12px;
   }
   .mini-card.suit-red { color: #c0392b; }
   .mini-card.suit-black { color: #1a1a1a; }
+
+  /* ============================================================
+     LIVE GAME — chip-denomination buy-in / rebuy / cash-out tracker
+     for an in-person game. Reuses .panel / .field / .btn / .stat-card
+     / .win-val / .loss-val from above; everything below is specific
+     to this tab's chip-set editor, player list, chip-count dialog,
+     and reconciliation view.
+     ============================================================ */
+  .tab-intro { color: var(--text-dim); font-size: 13px; margin: -6px 0 16px; line-height: 1.5; }
+
+  /* Saved chip-set presets (see chipPresets in app.js) — click a pill to
+     load that set into the editor below; the × deletes it. */
+  .chip-preset-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip-preset-pill {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 6px 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  .chip-preset-pill:hover { border-color: var(--accent-2); }
+  .chip-preset-pill .del-preset {
+    background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 2px 4px;
+  }
+  .chip-preset-pill .del-preset:hover { color: var(--loss); }
+
+  .chip-set-editor { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+  .chip-set-row { display: flex; align-items: center; gap: 8px; }
+  .chip-set-row input[type="text"] { flex: 2; }
+  .chip-set-row input[type="number"] { flex: 1; }
+  .chip-set-row input[type="color"] {
+    width: 34px; height: 34px; padding: 2px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer;
+  }
+  .chip-set-row button.remove-denom {
+    background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 4px 6px;
+  }
+  .chip-set-row button.remove-denom:hover { color: var(--loss); }
+
+  .btn-link {
+    background: transparent; border: none; color: var(--accent-2); cursor: pointer; font-size: 13px;
+    font-weight: 600; padding: 6px 0;
+  }
+  .btn-link:hover { text-decoration: underline; }
+
+  .btn-secondary {
+    padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: transparent;
+    color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .btn-secondary:hover { border-color: var(--accent-2); }
+
+  .save-preset-row { display: flex; gap: 8px; margin-top: 12px; }
+  .save-preset-row input {
+    flex: 1; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; font-size: 14px;
+  }
+
+  .form-error { color: var(--loss); font-size: 13px; margin-top: 8px; min-height: 16px; }
+
+  .game-totals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+
+  .chips-in-play { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-pill {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 4px 10px; font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .chip-pill .swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.25); }
+
+  .player-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .player-row {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .player-row.cashed-out { opacity: 0.7; }
+  .player-row .player-meta { min-width: 90px; }
+  .player-row .player-name { font-weight: 600; font-size: 14px; }
+  .player-row .player-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .player-row .player-net { font-weight: 700; font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .player-row .player-actions { display: flex; gap: 8px; }
+  .player-row .player-actions button {
+    padding: 7px 11px; border-radius: 6px; border: 1px solid var(--border); background: transparent;
+    color: var(--text); cursor: pointer; font-size: 12px; font-weight: 600;
+  }
+  .player-row .player-actions button:hover { border-color: var(--accent-2); }
+  .player-row .player-actions button.cashout-btn:hover { border-color: var(--loss); color: var(--loss); }
+
+  .add-player-row { display: flex; gap: 8px; }
+  .add-player-row input {
+    flex: 1; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; font-size: 14px;
+  }
+
+  /* Reconciliation summary shown after ending a game, or when a past game is clicked */
+  .reconcile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .reconcile-status {
+    text-align: center; font-weight: 700; font-size: 14px; padding: 10px; border-radius: 8px; margin-bottom: 14px;
+  }
+  .reconcile-status.balanced { background: rgba(53, 232, 212, 0.12); color: var(--win); }
+  .reconcile-status.off { background: rgba(255, 63, 142, 0.12); color: var(--loss); }
+  .reconcile-section-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 8px; }
+  .settle-list { display: flex; flex-direction: column; gap: 8px; }
+  .settle-row {
+    display: flex; align-items: center; justify-content: space-between; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  }
+
+  .game-history-list { display: flex; flex-direction: column; gap: 10px; }
+  .game-history-row {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .game-history-row:hover { border-color: var(--accent-2); }
+  .game-history-row .meta { font-size: 13px; }
+  .game-history-row .meta .top { font-weight: 600; }
+  .game-history-row .meta .bottom { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+
+  /* ---- Chip counter dialog (buy-in / rebuy / cash-out) ---- */
+  .chip-dialog {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel);
+    color: var(--text); padding: 22px; max-width: 380px; width: 90vw;
+  }
+  .chip-dialog::backdrop { background: rgba(4, 12, 8, 0.7); }
+  .chip-dialog h3 { margin: 0 0 16px; font-size: 16px; color: var(--accent); }
+  .chip-dialog-rows { display: flex; flex-direction: column; gap: 10px; }
+  .chip-dialog-row { display: flex; align-items: center; gap: 10px; }
+  .chip-dialog-row .swatch { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.25); }
+  .chip-dialog-row .denom-label { flex: 1; font-size: 13px; }
+  .chip-dialog-row .stepper { display: flex; align-items: center; gap: 6px; }
+  .chip-dialog-row .stepper button {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text); cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  .chip-dialog-row .stepper button:hover { border-color: var(--accent-2); }
+  .chip-dialog-row .stepper input {
+    width: 48px; text-align: center; padding: 6px 4px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; font-size: 13px;
+  }
+  .chip-dialog-row .row-subtotal { width: 60px; text-align: right; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .chip-dialog-total { text-align: right; font-weight: 700; font-size: 15px; margin: 16px 0 4px; font-variant-numeric: tabular-nums; }
+  .chip-dialog-actions { display: flex; gap: 10px; margin-top: 12px; }
+  .chip-dialog-actions button { flex: 1; margin-top: 0; }
 
   /* On narrow (phone) screens, show the 4 stat cards as a 2x2 grid instead of 1x4,
      and shrink the poker cards / selects so 5-card rows still fit. */
@@ -245,4 +446,5 @@
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .card-select { width: 56px; }
     .poker-card { width: 38px; height: 52px; font-size: 14px; }
+    .reconcile-grid { grid-template-columns: 1fr; }
   }
